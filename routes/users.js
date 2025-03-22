@@ -1,19 +1,21 @@
 const express = require('express');
 const router = express.Router();
-const User = require('../models/users');
+const User = require('../models/User');
 // const auth = require('../middleware/auth');
 // const upload = require('../middleware/fileUpload');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { check, validationResult } = require('express-validator');
 
-
+//thoda thoda wait let me take help of chatgpt 
 
 /**
  * @route   POST /api/users/register
  * @desc    Register a new user
  * @access  Public
  */
+
+
 
 
 router.post('/register', [
@@ -94,7 +96,7 @@ router.post('/register', [
 //   router.post("/login-usernamepassword",(req,res) => {})
     router.post("/login-usernamepassword", [
         check('email', 'Please include a valid email').isEmail(),
-        check('password', 'Password is required').exists()
+        check('password', 'Password is requitred').exists()
       ], async (req, res) => {
         const errors = validationResult(req);
         if (!errors.isEmpty()) {

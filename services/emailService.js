@@ -20,6 +20,7 @@ class MailService {
     this.transporter = nodemailer.createTransport(this.config);
     
     // Verify connection configuration
+     
     this.transporter.verify((error, success) => {
       if (error) {
         console.error("SMTP connection error:", error);

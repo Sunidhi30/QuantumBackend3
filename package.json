@@ -12,12 +12,15 @@
   "dependencies": {
     "bcrypt": "^5.1.1",
     "bcryptjs": "^3.0.2",
+    "config": "^3.3.12",
     "dotenv": "^16.4.7",
     "ejs": "^3.1.10",
     "express": "^4.21.2",
     "express-validator": "^7.2.1",
     "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.12.1",
-    "nodemon": "^3.1.9"
+    "mongoose": "^8.12.2",
+    "nodemailer": "^6.10.0",
+    "nodemon": "^3.1.9",
+    "twilio": "^5.5.1"
   }
 }

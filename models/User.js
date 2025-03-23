@@ -47,10 +47,22 @@ const userSchema = new mongoose.Schema({
     enum: ['pending', 'verified', 'rejected'],
     default: 'pending'
   },
-  kycDocuments: {
-    idProof: String,
-    addressProof: String,
-    selfie: String
+  // kycDocuments: {
+  //   idProof: String,
+  //   addressProof: String,
+  //   selfie: String
+  // },
+  ycDocuments: {
+    idProof: String, // Cloudinary URL
+    panCard: String, // Cloudinary URL (Only for Indian users)
+    addressProof: String, // Cloudinary URL
+    // dematAccount: String,// aree bhaii chor dete hai
+    bankDetails: {
+      accountHolderName: String,
+      accountNumber: String,
+      ifscCode: String,
+      bankName: String,
+    },
   },
   bankDetails: {
     accountHolderName: String,

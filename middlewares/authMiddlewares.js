@@ -68,22 +68,25 @@ exports.protect = async (req, res, next) => {
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         console.log(decoded)
-
+     
         // ✅ Update the email to match your hardcoded admin email
-        // if (decoded.role === 'admin' && decoded.email === 'sunidhi@gmail.com') {
-        //     req.user = { role: 'admin', email: 'sunidhi@gmail.com' };
-        //     return next();
-        // }
+        if (decoded.role === 'admin' && decoded.email === 'sunidhi@gmail.com') {
+            req.user = { role: 'admin', email: 'sunidhi@gmail.com' };
+            return next();
+        }
+        // agr database mai set krege toh vo kaise krege 
 
         req.user = await User.findById(decoded.userId);
+    
+   
             
         console.log("Decoded User:", req.user); // ✅ Debugging log
-
+//han
         if (!req.user) {
             return res.status(401).json({ msg: "User not found" });
         }
-
         next();
+      
 
 
     } catch (error) {

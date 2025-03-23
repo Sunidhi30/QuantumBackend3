@@ -1,175 +1,4 @@
-// const express = require('express');
-// const jwt = require('jsonwebtoken');
-// require('dotenv').config();
-// const Investment = require('../models/Investment'); // Import the Investment model
-// const mongoose = require("mongoose")
-// const router = express.Router();
 
-// // Predefined admin credentials
-// const ADMIN_EMAIL = "admin@gmail.com";
-// const ADMIN_PHONE = "1234567890"; // Optional
-// const ADMIN_OTP = "0000";
-// const JWT_SECRET = process.env.JWT_SECRET || "your_secret_key";
-
-// // Middleware to verify admin token
-// const verifyAdmin = (req, res, next) => {
-//     const token = req.header('Authorization');
-//     if (!token) return res.status(401).json({ msg: 'Access Denied. No Token Provided.' });
-
-//     try {
-//         const decoded = jwt.verify(token, JWT_SECRET);
-//         if (decoded.role !== 'admin') {
-//             return res.status(403).json({ msg: 'Unauthorized access' });
-//         }
-//         req.admin = decoded;
-//         next();
-//     } catch (err) {
-//         res.status(400).json({ msg: 'Invalid Token' });
-//     }
-// };
-
-// // 1️⃣ **Admin Login (OTP Request)**
-// router.post('/login', (req, res) => {
-//     const { email, phone } = req.body;
-
-//     if (email !== ADMIN_EMAIL && phone !== ADMIN_PHONE) {
-//         return res.status(400).json({ msg: 'Unauthorized access' });
-//     }
-
-//     res.json({ msg: 'OTP sent (0000 for now)', otp: ADMIN_OTP });
-// });
-
-// // 2️⃣ **Verify Admin OTP & Issue Token**
-// router.post('/verify-login-otp', (req, res) => {
-//     // console.log("admin this is ")
-//     const { email, phone, otp } = req.body;
-
-//     if ((email !== ADMIN_EMAIL && phone !== ADMIN_PHONE) || otp !== ADMIN_OTP) {
-//         return res.status(400).json({ msg: 'Invalid email/phone or OTP' });
-//     }
-
-//     // Generate JWT token
-//     const token = jwt.sign({ role: 'admin', email }, JWT_SECRET, { expiresIn: '24h' });
-
-//     res.json({ msg: 'Admin login successful', token });
-// });
-
-// // 3️⃣ **Protected Admin Dashboard**
-// router.get('/dashboard', verifyAdmin, (req, res) => {
-//     res.json({ msg: 'Welcome to Admin Dashboard', admin: req.admin });
-// });
-
-// // Add a new investment
-
-
-// // Get all investments
-// router.get('/investments', async (req, res) => {
-//     try {
-//         const investments = await Investment.find();
-//         res.json(investments);
-//     } catch (error) {
-//         res.status(500).json({ error: error.message });
-//     }
-// });
-
-// // Get a single investment
-// router.get('/investments/:id', async (req, res) => {
-//     try {
-//         const investment = await Investment.findById(req.params.id);
-//         if (!investment) return res.status(404).json({ error: 'Investment not found' });
-//         res.json(investment);
-//     } catch (error) {
-//         res.status(500).json({ error: error.message });
-//     }
-// });
-
-// // Update an investment
-// router.put('/investments/:id', async (req, res) => {
-//     try {
-//         const updatedInvestment = await Investment.findByIdAndUpdate(req.params.id, req.body, { new: true });
-//         res.json(updatedInvestment);
-//     } catch (error) {
-//         res.status(500).json({ error: error.message });
-//     }
-// });
-
-// // Delete an investment
-// router.delete('/investments/:id', async (req, res) => {
-//     try {
-//         await Investment.findByIdAndDelete(req.params.id);
-//         res.json({ message: 'Investment deleted' });
-//     } catch (error) {
-//         res.status(500).json({ error: error.message });
-//     }
-// });
-
-
-// router.post('/investments', async (req, res) => {
-//     try {
-//         const {
-//             user,
-//             plan,
-//             planName,
-//             amount,
-//             apr,
-//             endDate,
-//             maturityAmount,
-//             paymentMethod,
-//             paymentDetails,
-//             payoutFrequency,
-//             paymentShield
-//         } = req.body;
-
-//         // Validate required fields
-//         if (!user || !plan || !planName || !amount || !apr || !endDate || !maturityAmount || !paymentMethod) {
-//             return res.status(400).json({ message: "All required fields must be provided" });
-//         }
-
-//         // Create a new investment
-//         const newInvestment = new Investment({
-//             user: new mongoose.Types.ObjectId(user),
-//             plan: new mongoose.Types.ObjectId(plan),
-//             planName,
-//             amount,
-//             apr,
-//             startDate: Date.now(),
-//             endDate,
-//             maturityAmount,
-//             paymentMethod,
-//             paymentDetails,
-//             payoutFrequency,
-//             paymentShield,
-//             status: 'pending', // Default status
-//             totalReturns: 0,
-//             createdAt: Date.now(),
-//             updatedAt: Date.now()
-//         });
-
-//         await newInvestment.save();
-//         res.status(201).json({ message: "Investment created successfully", investment: newInvestment });
-
-//     } catch (error) {
-//         console.error("Error creating investment:", error);
-//         res.status(500).json({ message: "Server Error" });
-//     }
-// });
-
-// // ✅ Get All Investments (GET)
-// router.get('/investments', async (req, res) => {
-//     try {
-//         const investments = await Investment.find().populate('user plan payouts'); // Populating referenced fields
-//         res.json(investments);
-//     } catch (error) {
-//         console.error("Error fetching investments:", error);
-//         res.status(500).json({ message: "Server Error" });
-//     }
-// });
-
-
-
-
-
-// module.exports = router;
 
 const express = require('express');
 
@@ -209,6 +38,7 @@ const verifyAdmin = (req, res, next) => {
     }
 };
 router.post('/login', (req, res) => {
+  
     const { email, phone } = req.body;
 
     if (email !== ADMIN_EMAIL && phone !== ADMIN_PHONE) {
@@ -259,7 +89,7 @@ router.post('/verify-login-otp', (req, res) => {
 
 // 3️⃣ **Middleware to Verify Admin Token**
 
-
+// phle mai ese add krdu
 // 1️⃣ **Admin Login (OTP Request)**
 
 
@@ -529,25 +359,50 @@ router.post('/process-withdrawals', protect, adminOnly, async (req, res) => {
     }
 });
 // kyc 
-router.get('/kyc-requests', protect, adminOnly, async (req, res) => {
+// router.get('/kyc-requests', protect, adminOnly, async (req, res) => {
+//     try {
+//         let { status, email, phone, sort = '-createdAt' } = req.query;
+//         let query = {};
+
+//         if (status) query.kycStatus = status;
+//         if (email) query.email = email;
+//         if (phone) query.phone = phone;
+
+//         const users = await User.find(query)
+//             .select('username email phone kycDocuments.idProof kycDocuments.addressProof kycDocuments.selfie kycStatus')
+//             .sort(sort);
+
+//         res.json({ success: true, users });
+
+//     } catch (error) {
+//         res.status(500).json({ error: error.message });
+//     }
+// });
+router.put("/kyc/:userId", protect, async (req, res) => {
+    console.log(req.params.userId)
     try {
-        let { status, email, phone, sort = '-createdAt' } = req.query;
-        let query = {};
-
-        if (status) query.kycStatus = status;
-        if (email) query.email = email;
-        if (phone) query.phone = phone;
-
-        const users = await User.find(query)
-            .select('username email phone kycDocuments.idProof kycDocuments.addressProof kycDocuments.selfie kycStatus')
-            .sort(sort);
-
-        res.json({ success: true, users });
-
+      
+      if (req.user.role !== "admin") {
+        return res.status(403).json({ message: "Access denied. Admins only." });
+      }
+  
+      const { status } = req.body; // status = 'verified' or 'rejected'
+      if (!["verified", "rejected"].includes(status)) {
+        return res.status(400).json({ message: "Invalid status" });
+      }
+  
+      const user = await User.findById(req.params.userId);
+      if (!user) return res.status(404).json({ message: "User not found" });
+  
+      user.kycStatus = status;
+      await user.save();
+  
+      res.status(200).json({ success: true, message: `KYC ${status} successfully.` });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+      res.status(500).json({ error: error.message });
     }
-});
+  });
+  // yeh ri api bhaii test krte h na 
 router.get('/transactions', protect, adminOnly, async (req, res) => {
     try {
         let { type, status, sort = '-createdAt' } = req.query;

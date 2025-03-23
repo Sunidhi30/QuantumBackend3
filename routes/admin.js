@@ -316,16 +316,16 @@ router.get('/withdrawal-stats', protect, adminOnly, async (req, res) => {
 //         res.status(500).json({ error: error.message });
 //     }
 // });
-router.get('/kyc-requests', protect, adminOnly, async (req, res) => {
-    try {
-        const users = await User.find({ kycStatus: "pending" })
-            .select('username email kycDocuments.idProof kycDocuments.addressProof kycDocuments.selfie');
+// router.get('/kyc-requests', protect, adminOnly, async (req, res) => {
+//     try {
+//         const users = await User.find({ kycStatus: "pending" })
+//             .select('username email kycDocuments.idProof kycDocuments.addressProof kycDocuments.selfie');
 
-        res.json({ success: true, users });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
+//         res.json({ success: true, users });
+//     } catch (error) {
+//         res.status(500).json({ error: error.message });
+//     }
+// });
 
 // ✅ Approve/Reject KYC (Admin Manually Verifies Documents)
 router.put('/kyc-approve/:userId', protect, adminOnly, async (req, res) => {
@@ -469,6 +469,108 @@ router.patch('/plans/:id/deactivate', protect, adminOnly, async (req, res) => {
         }
 
         res.json({ success: true, message: "Plan deactivated successfully", plan: updatedPlan });
+
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// withdraws 
+const Withdrawal = require('../models/Withdrawal'); // Create this model if not available
+
+router.post('/process-withdrawals', protect, adminOnly, async (req, res) => {
+    try {
+        // Fetch all pending withdrawals
+        const pendingWithdrawals = await Withdrawal.find({ status: "pending" }).populate("user");
+
+        if (pendingWithdrawals.length === 0) {
+            return res.json({ message: "No pending withdrawals" });
+        }
+
+        let processedWithdrawals = [];
+
+        for (let withdrawal of pendingWithdrawals) {
+            const user = withdrawal.user;
+
+            // Check if user's KYC is approved
+            if (user.kycStatus !== "verified") {
+                withdrawal.status = "failed";
+                withdrawal.remarks = "KYC not verified";
+                await withdrawal.save();
+                continue;
+            }
+
+            // Check if the user has enough balance
+            if (user.walletBalance < withdrawal.amount) {
+                withdrawal.status = "failed";
+                withdrawal.remarks = "Insufficient balance";
+                await withdrawal.save();
+                continue;
+            }
+
+            // Deduct balance and process withdrawal
+            user.walletBalance -= withdrawal.amount;
+            withdrawal.status = "processed";
+            await user.save();
+            await withdrawal.save();
+
+            processedWithdrawals.push({
+                user: user.email,
+                amount: withdrawal.amount,
+                method: withdrawal.paymentMethod,
+                status: withdrawal.status
+            });
+        }
+
+        res.json({ success: true, processedWithdrawals });
+
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+// kyc 
+router.get('/kyc-requests', protect, adminOnly, async (req, res) => {
+    try {
+        let { status, email, phone, sort = '-createdAt' } = req.query;
+        let query = {};
+
+        if (status) query.kycStatus = status;
+        if (email) query.email = email;
+        if (phone) query.phone = phone;
+
+        const users = await User.find(query)
+            .select('username email phone kycDocuments.idProof kycDocuments.addressProof kycDocuments.selfie kycStatus')
+            .sort(sort);
+
+        res.json({ success: true, users });
+
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+router.get('/transactions', protect, adminOnly, async (req, res) => {
+    try {
+        let { type, status, sort = '-createdAt' } = req.query;
+        let query = {};
+
+        if (type) query.type = type; // Filter by deposit, withdrawal, etc.
+        if (status) query.status = status; // Filter by success, failed, pending
+
+        const transactions = await Transaction.find(query)
+            .populate('user', 'email username')
+            .sort(sort);
+
+        res.json({ success: true, transactions });
+
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.get('/login-logs', protect, adminOnly, async (req, res) => {
+    try {
+        const logs = await AdminLog.find().sort('-createdAt');
+        res.json({ success: true, logs });
 
     } catch (error) {
         res.status(500).json({ error: error.message });

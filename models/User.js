@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
+
 const userSchema = new mongoose.Schema({
   username: {
     type: String,
@@ -20,6 +21,23 @@ const userSchema = new mongoose.Schema({
     trim: true,
     lowercase: true
   },
+  emailOtp: {
+    type: String
+  },
+  emailOtpExpiry: {
+    type: Date
+  },
+  isEmailVerified: {
+    type: Boolean,
+    default: false
+  },
+  phonePin: {
+    type: String
+  },
+  phonePinExpiry: {
+    type: Date
+  },
+  
   profilePicture: {
     type: String,
     default: ''
@@ -46,7 +64,9 @@ const userSchema = new mongoose.Schema({
   },
   referralCode: {
     type: String,
-    unique: true
+    unique: true,
+    sparse:true
+
   },
   referredBy: {
     type: mongoose.Schema.Types.ObjectId,

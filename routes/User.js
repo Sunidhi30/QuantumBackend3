@@ -1,15 +1,15 @@
-const express = require('express');
-const { protect } = require('../middlewares/authMiddlewares');
-const Plan = require('../models/Plan');
-
+const express = require("express");
 const router = express.Router();
+const Plan = require("../models/Plan"); // Import Plan model
+const { protect } = require("../middlewares/authMiddlewares"); // Only authentication required
+const User = require("../models/User"); // Ensure correct path
 
-// ✅ Get All Active Investment Plans for Users
-router.get('/user/plans', protect, async (req, res) => {
+// 🔹 Fetch all plans (Accessible by all logged-in users)
+router.get('/plans', protect,async (req, res) => {
     try {
-        let query = { isActive: true }; // Users can only see active plans
+        let query = {};
 
-        // Apply filters based on query parameters
+        // Apply filters based on request query parameters
         if (req.query.minInvestment) {
             query.minInvestment = { $gte: Number(req.query.minInvestment) };
         }
@@ -20,13 +20,11 @@ router.get('/user/plans', protect, async (req, res) => {
             query.tenureOptions = req.query.tenure; // Match tenure exactly
         }
 
-        const plans = await Plan.find(query).select('-createdAt -updatedAt'); // Exclude timestamps
-
+        const plans = await Plan.find(query);
         res.json({ success: true, plans });
 
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
-
 module.exports = router;

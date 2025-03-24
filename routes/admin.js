@@ -89,9 +89,7 @@ router.post('/verify-login-otp', (req, res) => {
 
 // 3️⃣ **Middleware to Verify Admin Token**
 
-// phle mai ese add krdu
-// 1️⃣ **Admin Login (OTP Request)**
-
+//
 
 // // Admin Dashboard Overview
 router.get('/dashboard', protect, adminOnly, async (req, res) => {
@@ -177,11 +175,110 @@ router.put('/kyc-approve/:userId', protect, adminOnly, async (req, res) => {
 // ✅ Manage Investment Plans
 
 // ✅ Add New Investment Plan
+// router.post('/plans', protect, adminOnly, async (req, res) => {
+//     try {
+//         const { 
+//             name, 
+//             type, 
+//             description, 
+//             apy, 
+//             tenureOptions, 
+//             paymentShield, 
+//             minInvestment, 
+//             maxInvestment, 
+//             dividend, 
+//             reward, 
+//             paymentOptions, 
+//             riskLevel 
+//         } = req.body;
+
+//         // Validate required fields
+//         if (!name || !type || !description || !apy || !tenureOptions || !minInvestment || !maxInvestment || !dividend || !riskLevel) {
+//             return res.status(400).json({ message: "Missing required fields" });
+//         }
+
+//         // Create new investment plan
+//         const newPlan = new Plan({
+//             name,
+//             type,
+//             description,
+//             apy,
+//             tenureOptions,
+//             paymentShield,
+//             minInvestment,
+//             maxInvestment,
+//             dividend,
+//             reward,
+//             paymentOptions,
+//             riskLevel
+//         });
+
+//         await newPlan.save();
+
+//         res.status(201).json({ success: true, plan: newPlan });
+//     } catch (error) {
+//         res.status(500).json({ error: error.message });
+//     }
+// });
+// router.post('/plans', protect, adminOnly, async (req, res) => {
+//     try {
+//         const { 
+//             name, 
+//             type, 
+//             category, 
+//             description, 
+//             apy, 
+//             tenureOptions, 
+//             paymentShield, 
+//             minInvestment, 
+//             maxInvestment, 
+//             dividend, 
+//             reward, 
+//             paymentOptions, 
+//             riskLevel 
+//         } = req.body;
+
+//         // Validate required fields
+//         if (!name || !type || !category || !description || !apy || !tenureOptions || !minInvestment || !maxInvestment || !dividend || !riskLevel) {
+//             return res.status(400).json({ message: "Missing required fields" });
+//         }
+
+//         // Validate category
+//         const validCategories = ['low_risk', 'tax_saving', 'sip', 'high_yield', 'blockchain_funds'];
+//         if (!validCategories.includes(category)) {
+//             return res.status(400).json({ message: "Invalid category" });
+//         }
+
+//         // Create new investment plan
+//         const newPlan = new Plan({
+//             name,
+//             type,
+//             category,
+//             description,
+//             apy,
+//             tenureOptions,
+//             paymentShield,
+//             minInvestment,
+//             maxInvestment,
+//             dividend,
+//             reward,
+//             paymentOptions,
+//             riskLevel
+//         });
+
+//         await newPlan.save();
+
+//         res.status(201).json({ success: true, plan: newPlan });
+//     } catch (error) {
+//         res.status(500).json({ error: error.message });
+//     }
+// });
 router.post('/plans', protect, adminOnly, async (req, res) => {
     try {
         const { 
             name, 
             type, 
+            category, 
             description, 
             apy, 
             tenureOptions, 
@@ -191,18 +288,36 @@ router.post('/plans', protect, adminOnly, async (req, res) => {
             dividend, 
             reward, 
             paymentOptions, 
-            riskLevel 
+            riskLevel,
+            dealHighlights  // ✅ Now included
         } = req.body;
 
         // Validate required fields
-        if (!name || !type || !description || !apy || !tenureOptions || !minInvestment || !maxInvestment || !dividend || !riskLevel) {
+        if (!name || !type || !category || !description || !apy || !tenureOptions || !minInvestment || !maxInvestment || !dividend || !riskLevel) {
             return res.status(400).json({ message: "Missing required fields" });
         }
+
+        // Validate category
+        const validCategories = ['low_risk', 'tax_saving', 'sip', 'high_yield', 'blockchain_funds'];
+        if (!validCategories.includes(category)) {
+            return res.status(400).json({ message: "Invalid category" });
+        }
+
+        // Ensure dealHighlights is properly structured
+        const highlights = dealHighlights || {
+            apy: apy || 0,
+            paymentShield: paymentShield?.isAvailable || false,
+            minInvestment: minInvestment || 0,
+            maturityDate: null,
+            reward: reward || "No reward",
+            dividend: dividend || 0
+        };
 
         // Create new investment plan
         const newPlan = new Plan({
             name,
             type,
+            category,
             description,
             apy,
             tenureOptions,
@@ -212,7 +327,8 @@ router.post('/plans', protect, adminOnly, async (req, res) => {
             dividend,
             reward,
             paymentOptions,
-            riskLevel
+            riskLevel,
+            dealHighlights: highlights // ✅ Now always included
         });
 
         await newPlan.save();
@@ -222,6 +338,7 @@ router.post('/plans', protect, adminOnly, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
 
 router.get('/plans', protect, adminOnly, async (req, res) => {
     try {
@@ -245,6 +362,24 @@ router.get('/plans', protect, adminOnly, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+router.get('/plans/category/:category', protect, adminOnly, async (req, res) => {
+    try {
+        const { category } = req.params;
+
+        // Fetch plans by category
+        const plans = await Plan.find({ category });
+
+        if (plans.length === 0) {
+            return res.status(404).json({ msg: 'No plans found for this category' });
+        }
+
+        res.json({ success: true, plans });
+
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 router.put('/plans/:id', protect, adminOnly, async (req, res) => {
     try {
         const planId = req.params.id;

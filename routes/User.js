@@ -9,6 +9,7 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 const Investment = require("../models/Investment");
 const PDFDocument = require('pdfkit');
+const FAQ = require("../models/FAQ"); // Import the FAQ model
 
 // 🔹 Fetch all plans (Accessible by all logged-in users)
 router.get('/plans', protect,async (req, res) => {
@@ -33,6 +34,7 @@ router.get('/plans', protect,async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
 router.get('/plans/category/:category', protect, async (req, res) => {
     try {
         const category = req.params.category.toLowerCase(); // ✅ Convert to lowercase
@@ -613,6 +615,14 @@ router.get('/:investmentId/schedule/pdf', protect, async (req, res) => {
         res.status(500).json({ success: false, message: "Server Error" });
     }
 });
-
+router.get("/faq", async (req, res) => {
+    try {
+        const faqs = await FAQ.find().sort({ createdAt: -1 });
+        res.json({ success: true, faqs });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
 module.exports = router;
 //67e02ee2abbc823b4505e9a7
+//

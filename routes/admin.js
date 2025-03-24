@@ -14,6 +14,7 @@ const ADMIN_OTP = "0000";
 const { protect, adminOnly } = require('../middlewares/authMiddlewares');
 const JWT_SECRET = process.env.JWT_SECRET || "Apple";
 const Plan = require('../models/Plan'); 
+const FAQ = require("../models/FAQ"); // Import the FAQ model
 
 dotenv.config();
 const router = express.Router();
@@ -566,6 +567,48 @@ router.get('/login-logs', protect, adminOnly, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+router.post("/faq", protect, adminOnly, async (req, res) => {
+    try {
+        const { question, answer } = req.body;
 
+        if (!question || !answer) {
+            return res.status(400).json({ message: "Both question and answer are required." });
+        }
+
+        const newFAQ = new FAQ({ question, answer });
+        await newFAQ.save();
+
+        res.status(201).json({ success: true, message: "FAQ added successfully", faq: newFAQ });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ✅ User: Get all FAQs
+router.get("/faq", async (req, res) => {
+    try {
+        const faqs = await FAQ.find().sort({ createdAt: -1 });
+        res.json({ success: true, faqs });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ✅ Admin: Delete an FAQ
+router.delete("/faq/:id", protect, adminOnly, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const deletedFAQ = await FAQ.findByIdAndDelete(id);
+
+        if (!deletedFAQ) {
+            return res.status(404).json({ message: "FAQ not found." });
+        }
+
+        res.json({ success: true, message: "FAQ deleted successfully." });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
 
 module.exports = router;
+//eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZG1pbklkIjoiaGFyZGNvZGVkX2FkbWluX2lkIiwicm9sZSI6ImFkbWluIiwiZW1haWwiOiJzdW5pZGhpQGdtYWlsLmNvbSIsImlhdCI6MTc0Mjc0NzA1OSwiZXhwIjoxNzQyODMzNDU5fQ.yCGK7M_AM7boQXVKPQwSD4UJJvvb97fMiRRoI-Ppdo0

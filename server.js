@@ -17,6 +17,9 @@ require('dotenv').config()
 db();
 
 const PORT = process.env.PORT || 9000;
+app.get("/", (req, res) => {
+    res.sendFile(__dirname + "/testing.html");
+})
 // app.use("/api/users",userRoutes)
 app.use("/api/auth",authRoutes)
 app.use("/api/admin",adminRoutes)
@@ -25,6 +28,7 @@ app.use('/api/wallet', walletRoutes);
 app.get('/session', (req, res) => {
     res.json({ sessionId: req.sessionID });
 });
+// sir login krte h fr dekhna dikkat , sir etna toh mera bhi hogya tha ohh baba kr rha hu mai robot thodi hu 
 
 db().then(function (db) {
     console.log(`Db connnected`)

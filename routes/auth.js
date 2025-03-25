@@ -13,7 +13,7 @@ env = require('dotenv').config();
 
 const router = express.Router();
 const OTPStore = new Map(); // Temporary store for OTPs
-
+const passport = require("../utils/googleauth");
 // Email transport setup
 const transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -96,6 +96,29 @@ router.post('/register', async (req, res) => {
   }
 });
 
+router.get("/google",(req,res)=>{
+  passport.authenticate("google", { scope: ["profile", "email"] })
+})
+// fr toh google pr bhi rn ahoga gogole cloud console pr 
+router.get(
+  "/google/callback",
+  passport.authenticate("google", { failureRedirect: "/",    session: false // Disable session if using JWT
+  }),
+  (req, res) => {
+    const user = req.user;
+
+    // Generate JWT token for authenticated user
+    const token = jwt.sign(
+      { id: user.id, name: user.displayName, email: user.emails[0].value },
+      process.env.JWT_SECRET,
+      { expiresIn: "12h" }
+    );
+
+    // Send token to the client
+    res.json({ token });
+   
+  }
+);
 
 router.post('/verify-otp', async (req, res) => {
   try {
@@ -145,16 +168,17 @@ router.post('/verify-otp', async (req, res) => {
 router.post('/login', [
   // check('login', 'Email or Mobile Number is required').not().isEmpty()
 ], async (req, res) => {
-  const { login } = req.body;
-  console.log("Searching for user with:", login);
+  const { email,mobileNumber } = req.body;
+  console.log("Searching for user with:", email);
   try {
       let user = await User.findOne({
-          $or: [{ email: login }, { mobileNumber: login }]
+          $or: [{ email: email }, { mobileNumber: mobileNumber }]
       });
 
       if (!user) return res.status(400).json({ msg: 'User not found. Please register first.' });
 
       // Generate OTP
+      // ok 
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
       OTPStore.set(user.email, otp); // Store OTP temporarily
 

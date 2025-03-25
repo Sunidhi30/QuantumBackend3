@@ -10,8 +10,55 @@ const upload = multer({ storage: storage });
 const Investment = require("../models/Investment");
 const PDFDocument = require('pdfkit');
 const FAQ = require("../models/FAQ"); // Import the FAQ model
+const { body, validationResult } = require('express-validator');
+const Reward = require('../models/Rewards');
+const nodemailer = require("nodemailer");
+const Quiz = require("../models/Quiz");
+const transporter = nodemailer.createTransport({
+    service: 'gmail', // Use your email provider
+    auth: {
+      user: process.env.EMAIL_USER, // Admin email (set in environment variables)
+      pass: process.env.EMAIL_PASS // Admin email password (use env variables for security)
+    }
+  });
+  
+// update the users profile
+router.put('/update-profile', protect, [
+  body('username').optional().trim(),
+  body('mobileNumber').optional().isMobilePhone(),
+  body('email').optional().isEmail().normalizeEmail(),
+  body('bankDetails.accountHolderName').optional().trim(),
+  body('bankDetails.accountNumber').optional().isNumeric(),
+  body('bankDetails.ifscCode').optional().trim(),
+  body('bankDetails.bankName').optional().trim(),
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
 
-// 🔹 Fetch all plans (Accessible by all logged-in users)
+    const { username, mobileNumber, email, bankDetails } = req.body;
+    const updateFields = {};
+
+    if (username) updateFields.username = username;
+    if (mobileNumber) updateFields.mobileNumber = mobileNumber;
+    if (email) updateFields.email = email;
+    if (bankDetails) updateFields.bankDetails = bankDetails;
+
+    const updatedUser = await User.findByIdAndUpdate(req.user.id, updateFields, { new: true });
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({ message: 'Profile updated successfully', user: updatedUser });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+//All the invested plans 
 router.get('/plans', protect,async (req, res) => {
     try {
         let query = {};
@@ -34,7 +81,43 @@ router.get('/plans', protect,async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-
+// users profile update 
+router.put('/update-profile', protect, [
+    body('username').optional().trim(),
+    body('mobileNumber').optional().isMobilePhone(),
+    body('email').optional().isEmail().normalizeEmail(),
+    body('bankDetails.accountHolderName').optional().trim(),
+    body('bankDetails.accountNumber').optional().isNumeric(),
+    body('bankDetails.ifscCode').optional().trim(),
+    body('bankDetails.bankName').optional().trim(),
+  ], async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+  
+      const { username, mobileNumber, email, bankDetails } = req.body;
+      const updateFields = {};
+  
+      if (username) updateFields.username = username;
+      if (mobileNumber) updateFields.mobileNumber = mobileNumber;
+      if (email) updateFields.email = email;
+      if (bankDetails) updateFields.bankDetails = bankDetails;
+  
+      const updatedUser = await User.findByIdAndUpdate(req.user.id, updateFields, { new: true });
+  
+      if (!updatedUser) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+  
+      res.json({ message: 'Profile updated successfully', user: updatedUser });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  });
+  //plans by cateogry : high_yeild,sip 
 router.get('/plans/category/:category', protect, async (req, res) => {
     try {
         const category = req.params.category.toLowerCase(); // ✅ Convert to lowercase
@@ -70,6 +153,7 @@ router.get('/plans/category/:category', protect, async (req, res) => {
 //       res.status(500).json({ success: false, error: error.message });
 //     }
 //   });
+
 router.get("/plans/deal-highlights", protect, async (req, res) => {
     try {
         // Fetch only active plans where `dealHighlights` is non-empty
@@ -88,6 +172,7 @@ router.get("/plans/deal-highlights", protect, async (req, res) => {
         res.status(500).json({ success: false, error: error.message });
     }
 });
+// get details of the plan by its id 
 router.get('/plans/:id', protect, async (req, res) => {
     try {
         const plan = await Plan.findById(req.params.id);
@@ -99,6 +184,7 @@ router.get('/plans/:id', protect, async (req, res) => {
         res.status(500).json({ success: false, error: error.message });
     }
 });
+// filter for the search query
 router.get('/plans/filter', protect, async (req, res) => {
     try {
         let query = {};
@@ -119,83 +205,177 @@ router.get('/plans/filter', protect, async (req, res) => {
         res.status(500).json({ success: false, error: error.message });
     }
 });
-router.get('/plans/rewards', protect, async (req, res) => {
-    try {
-        const plans = await Plan.find({}, { name: 1, dealHighlights: 1 });
-
-        if (!plans.length) {
-            return res.status(404).json({ success: false, message: "No rewards available" });
-        }
-
-        res.status(200).json({ success: true, rewards: plans.map(plan => ({
-            name: plan.name,
-            reward: plan.dealHighlights.reward || "No reward details available"
-        }))});
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
 
 
-  
-router.post("/kyc", protect, upload.fields([
-    
-    { name: "idProof", maxCount: 1 },
-    { name: "panCard", maxCount: 1 },
-    { name: "addressProof", maxCount: 1 },
-    // pgl hj user ka phle upload
-    
-]), async (req, res) => {
-    console.log(req.files)
-    try {
+
+  //upload the  kycs dcuemnts this was working but the documents is not getting upload 
+
+router.post(
+    "/kyc",
+    protect,
+    upload.fields([
+      { name: "idProof", maxCount: 1 },
+      { name: "panCard", maxCount: 1 },
+      { name: "addressProof", maxCount: 1 },
+    ]),
+    async (req, res) => {
+      try {
         const user = await User.findById(req.user.id);
         if (!user) return res.status(404).json({ message: "User not found" });
-
-        const { nationality, accountHolderName,accountNumber,ifscCode,bankName} = req.body;
-
+  
+        const { nationality, accountHolderName, accountNumber, ifscCode, bankName } = req.body;
+  
         if (!req.files.idProof || !req.files.addressProof) {
-            return res.status(400).json({ message: "All required documents must be uploaded" });
+          return res.status(400).json({ message: "All required documents must be uploaded" });
         }
-
+  
         if (nationality === "Indian" && !req.files.panCard) {
-            return res.status(400).json({ message: "PAN Card is required for Indian users" });
+          return res.status(400).json({ message: "PAN Card is required for Indian users" });
         }
-
-        // Upload to Cloudinary
-        console.log("this is cloud")
-        const idProofBase64 = `data:image/png;base64,${req.files.idProof[0].buffer.toString("base64")}`;
-const idProofUrl = await uploadToCloudinary(idProofBase64, "kyc_docs");
-
-        console.log(idProofUrl+"Id proof ")
-
-        const panCardUrl = `data:image/png;base64,${req.files.panCard[0].buffer.toString("base64")}`;
-        const panCardProofUrl = await uploadToCloudinary(panCardUrl, "kyc_docs");
-
-        const addressProofUrl = `data:image/png;base64,${req.files.addressProof[0].buffer.toString("base64")}`;
-        const addressidProofUrl = await uploadToCloudinary(addressProofUrl, "kyc_docs");
-
-      //thek h
-
-
-        let bankDetails = {accountHolderName,accountNumber,ifscCode,bankName};
-        
-        // Update user KYC details 
+  
+        // Function to process and upload documents
+        const uploadDocument = async (file) => {
+          if (!file) return null; // Skip if no file provided
+          const base64 = `data:${file.mimetype};base64,${file.buffer.toString("base64")}`;
+          return await uploadToCloudinary(base64, "kyc_docs", file.mimetype);
+        };
+  
+        // Upload files to Cloudinary
+        const idProofUrl = await uploadToCloudinary(req.files.idProof[0].buffer, "kyc_docs", req.files.idProof[0].mimetype);
+        const panCardUrl = req.files.panCard ? await uploadToCloudinary(req.files.panCard[0].buffer, "kyc_docs", req.files.panCard[0].mimetype) : null;
+        const addressProofUrl = await uploadToCloudinary(req.files.addressProof[0].buffer, "kyc_docs", req.files.addressProof[0].mimetype);
+  
+  
+        // Save KYC details in the user model
         user.kycDocuments = {
-            idProof: idProofUrl,
-            panCard: panCardProofUrl,
-            addressProof: addressidProofUrl,
-            
-            bankDetails: bankDetails,// to fr ese bhi form vaal kr lete h key value pair 
+          idProof: idProofUrl,
+          panCard: panCardUrl,
+          addressProof: addressProofUrl,
+          bankDetails: { accountHolderName, accountNumber, ifscCode, bankName },
         };
         user.kycStatus = "pending";
-
         await user.save();
-        res.status(200).json({ success: true, message: "KYC submitted successfully. Waiting for admin approval." });
+  
+        console.log("Stored KYC Data:", user.kycDocuments);
+  
+        res.status(200).json({
+            success: true,
+            message: "KYC submitted successfully. Waiting for admin approval.",
+            urls: user.kycDocuments, // Return the image URLs
+          });      } catch (error) {
+        console.error("KYC Upload Error:", error);
+        res.status(500).json({ error: error.message });
+      }
+    }
+  );
+// get all the documents uploaded 
+// router.get('/kyc-documents', protect, async (req, res) => {
+//     try {
+//         const user = await User.findById(req.user.id);
+
+//         if (!user) {
+//             return res.status(404).json({ message: "User not found" });
+//         }
+
+//         if (!user.kycDocuments) {
+//             return res.status(404).json({ message: "No KYC documents found" });
+//         }
+
+//         res.status(200).json({
+//             success: true,
+//             kycDocuments: user.kycDocuments,
+//             kycStatus: user.kycStatus
+//         });
+
+//     } catch (error) {
+//         console.error("Error fetching KYC documents:", error);
+//         res.status(500).json({ message: "Internal server error" });
+//     }
+// });
+// router.get('/kyc-documents', protect, async (req, res) => {
+//     try {
+//         const user = await User.findById(req.user.id);
+
+//         if (!user) {
+//             return res.status(404).json({ message: "User not found" });
+//         }
+
+//         if (!user.kycDocuments) {
+//             return res.status(404).json({ message: "No KYC documents found" });
+//         }
+
+//         // Ensure Cloudinary URLs are returned
+//         res.status(200).json({
+//             success: true,
+//             kycDocuments: {
+//                 idProof: user.kycDocuments.idProof || null,
+//                 panCard: user.kycDocuments.panCard || null,
+//                 addressProof: user.kycDocuments.addressProof || null,
+//             },
+//             kycStatus: user.kycStatus
+//         });
+
+//     } catch (error) {
+//         console.error("Error fetching KYC documents:", error);
+//         res.status(500).json({ message: "Internal server error" });
+//     }
+// });
+router.get('/kyc-documents', protect, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id);
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        if (!user.kycDocuments) {
+            return res.status(404).json({ message: "No KYC documents found" });
+        }
+
+        res.status(200).json({
+            success: true,
+            kycDocuments: {
+                idProof: user.kycDocuments.idProof || null,
+                panCard: user.kycDocuments.panCard || null,
+                addressProof: user.kycDocuments.addressProof || null,
+            },
+            kycStatus: user.kycStatus
+        });
 
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error("Error fetching KYC documents:", error);
+        res.status(500).json({ message: "Internal server error" });
     }
 });
+// router.get('/kyc-documents/download', protect, async (req, res) => {
+//     try {
+//         const user = await User.findById(req.user.id);
+//         if (!user) return res.status(404).json({ message: "User not found" });
+//         console.log("users documents"+user.kycDocuments);
+//         console.log("users documents id"+user.kycDocuments.idProof);
+//         console.log("users documents idproof url"+user.kycDocuments.idProof.url);
+
+//         if (!user.kycDocuments || !user.kycDocuments.idProof ) {
+//             return res.status(404).json({ message: "No idproof documents found" });
+//         }
+//         if (!user.kycDocuments || !user.kycDocuments. panCard) {
+//             return res.status(404).json({ message: "No panCard documents found" });
+//         }
+
+//         if (!user.kycDocuments || !user.kycDocuments.addressProof) {
+//             return res.status(404).json({ message: "No addressproof documents found" });
+//         }
+
+//         // Redirect user to the Cloudinary URL
+//         res.redirect(user.kycDocuments.idProof.url);
+
+//     } catch (error) {
+//         console.error("Error fetching KYC documents:", error);
+//         res.status(500).json({ message: "Internal server error" });
+//     }
+// });
+
+
 // investments plans acocrding tot he user 
 router.post('/invest', protect, async (req, res) => {
     try {
@@ -522,41 +702,7 @@ router.get('/:investmentId/schedule', protect, async (req, res) => {
     }
 });
 
-// @route   GET /api/investments/:investmentId/schedule/pdf
-// @desc    Download investment schedule as PDF
-// @access  Private
-// router.get('/:investmentId/schedule/pdf', protect, async (req, res) => {
-//     try {
-//         const investment = await Investment.findById(req.params.investmentId).populate('plan');
 
-//         if (!investment) {
-//             return res.status(404).json({ success: false, message: "Investment not found" });
-//         }
-
-//         const { amount, tenureMonths, plan } = investment;
-//         const { apy } = plan;
-        
-//         let schedule = calculateInvestmentSchedule(amount, apy, tenureMonths);
-        
-//         // Create PDF
-//         const doc = new PDFDocument();
-//         res.setHeader('Content-Disposition', 'attachment; filename="investment_schedule.pdf"');
-//         res.setHeader('Content-Type', 'application/pdf');
-//         doc.pipe(res);
-
-//         doc.fontSize(16).text('Investment Schedule', { align: 'center' }).moveDown();
-//         doc.fontSize(12).text(`Plan Name: ${plan.name}`);
-//         doc.text(`Tenure: ${tenureMonths} months`);
-//         doc.text(`Principal: $${schedule.principal}`);
-//         doc.text(`Monthly Interest: $${schedule.monthlyInterest.toFixed(2)}`);
-//         doc.text(`Total Monthly Returns: $${schedule.totalMonthlyReturns.toFixed(2)}`);
-
-//         doc.end();
-//     } catch (error) {
-//         console.error(error);
-//         res.status(500).json({ success: false, message: "Server Error" });
-//     }
-// });
 router.get('/:investmentId/schedule/pdf', protect, async (req, res) => {
     try {
         const investment = await Investment.findById(req.params.investmentId).populate('plan');
@@ -623,6 +769,82 @@ router.get("/faq", async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+// rewards users can see 
+router.get('/user-rewards/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const user = await User.findById(userId);
+        
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        const totalInvestment = user.totalInvestment;
+        const eligibleRewards = await Reward.find({ amountRequired: { $lte: totalInvestment } });
+
+        res.status(200).json({ totalInvestment, eligibleRewards });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+router.post('/upload-query', async (req, res) => {
+    try {
+      const { userId, queryText } = req.body;
+  
+      if (!userId || !queryText) {
+        return res.status(400).json({ message: 'User ID and query text are required' });
+      }
+  
+      const user = await User.findById(userId);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+  
+      const mailOptions = {
+        from: user.email,
+        to: process.env.EMAIL_USER, // Admin's email
+        subject: `New Query from ${user.username}`,
+        text: `User: ${user.username} (${user.email})\nQuery: ${queryText}`
+      };
+  
+      await transporter.sendMail(mailOptions);
+  
+      res.status(200).json({ message: 'Query sent successfully' });
+    } catch (error) {
+      console.error('Error sending query email:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+  // users quiz 
+  router.get('/quiz', async (req, res) => {
+    try {
+      const quizzes = await Quiz.find({}, 'question options'); // Do not send correct answers
+      res.status(200).json(quizzes);
+    } catch (error) {
+      res.status(500).json({ message: 'Server error', error: error.message });
+    }
+  });
+  router.post('/quiz-submit', async (req, res) => {
+    try {
+      const { answers } = req.body; // Expect an array of { quizId, answer }
+      
+      if (!answers || !Array.isArray(answers)) {
+        return res.status(400).json({ message: 'Invalid answer format' });
+      }
+  
+      let score = 0;
+      for (const { quizId, answer } of answers) {
+        const quiz = await Quiz.findById(quizId);
+        if (quiz && quiz.correctAnswer === answer) {
+          score++;
+        }
+      }
+  
+      res.status(200).json({ message: 'Quiz submitted', score });
+    } catch (error) {
+      res.status(500).json({ message: 'Server error', error: error.message });
+    }
+  });  
 module.exports = router;
 //67e02ee2abbc823b4505e9a7
-//
+//sunidhiratra21@gmail.com:67e01a39035bcb0216d1d471

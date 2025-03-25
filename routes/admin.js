@@ -15,9 +15,10 @@ const { protect, adminOnly } = require('../middlewares/authMiddlewares');
 const JWT_SECRET = process.env.JWT_SECRET || "Apple";
 const Plan = require('../models/Plan'); 
 const FAQ = require("../models/FAQ"); // Import the FAQ model
-
+const Reward = require('../models/Rewards');
 dotenv.config();
 const router = express.Router();
+const Quiz = require('../models/Quiz');
 
 // Admin Login (Dynamically Generated OTP)
 
@@ -609,6 +610,70 @@ router.delete("/faq/:id", protect, adminOnly, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+// rewards functionality 
+// Create or update a reward
+router.post('/add-reward',protect, async (req, res) => {
+    try {
+        const { amountRequired, rewardName, description } = req.body;
 
+        // Check if reward already exists for this amount
+        const existingReward = await Reward.findOne({ amountRequired });
+        if (existingReward) {
+            return res.status(400).json({ message: 'Reward for this amount already exists.' });
+        }
+
+        const reward = new Reward({ amountRequired, rewardName, description });
+        await reward.save();
+        
+        res.status(201).json({ message: 'Reward added successfully', reward });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+  
+  // Get all rewards
+  router.get('/rewards-all',protect, async (req, res) => {
+    try {
+      const rewards = await Reward.find();
+      res.json(rewards);
+    } catch (error) {
+      res.status(500).json({ message: "Server Error", error });
+    }
+  });
+ 
+  // Delete a reward
+  router.delete('/delete/:id',protect, async (req, res) => {
+    try {
+      await Reward.findByIdAndDelete(req.params.id);
+      res.json({ message: "Reward deleted successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Server Error", error });
+    }
+  });
+  // admin quiz 
+  router.post('/add', protect, async (req, res) => {
+    try {
+      const { question, options, correctAnswer } = req.body;
+      const adminId = req.user._id; // Get admin ID from token
+  
+      if (!question || !options || !correctAnswer || options.length < 2) {
+        return res.status(400).json({ message: 'Invalid quiz data' });
+      }
+  
+      const newQuiz = new Quiz({
+        question,
+        options,
+        correctAnswer,
+        createdBy: adminId
+      });
+  
+      await newQuiz.save();
+      res.status(201).json({ message: 'Quiz added successfully' });
+  
+    } catch (error) {
+      res.status(500).json({ message: 'Server error', error: error.message });
+    }
+  });
+  
 module.exports = router;
-//eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZG1pbklkIjoiaGFyZGNvZGVkX2FkbWluX2lkIiwicm9sZSI6ImFkbWluIiwiZW1haWwiOiJzdW5pZGhpQGdtYWlsLmNvbSIsImlhdCI6MTc0Mjc0NzA1OSwiZXhwIjoxNzQyODMzNDU5fQ.yCGK7M_AM7boQXVKPQwSD4UJJvvb97fMiRRoI-Ppdo0
+// eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZG1pbklkIjoiaGFyZGNvZGVkX2FkbWluX2lkIiwicm9sZSI6ImFkbWluIiwiZW1haWwiOiJzdW5pZGhpQGdtYWlsLmNvbSIsImlhdCI6MTc0Mjg5NDg3NywiZXhwIjoxNzQyOTgxMjc3fQ.3BUD1eIOq8zcZ2DTsijiKEIY-RSiN3RImotEBWAR7-g

@@ -12,8 +12,8 @@ class MailService {
       secure: config.secure || false,
       service: config.service || "gmail",
       auth: {
-        user: config.user || process.env.EMAIL_USER || "Sunidhi email",
-        pass: config.pass || process.env.EMAIL_PASSWORD || "sunidhi app password",
+        user: config.user || process.env.EMAIL_USER || "Sunidhiratra21@gmail.com",
+        pass: config.pass || process.env.EMAIL_PASSWORD || "dxvd nsze negn ksko",
       }
     };
     

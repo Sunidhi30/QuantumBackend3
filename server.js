@@ -2,10 +2,13 @@ const express = require('express');
 const app = express();
 const db = require('./utils/db')
 const userRoutes = require("./routes/users")
+const {configureGoogleAuth} = require('./utils/googleAuthStrategy');
+
 const authRoutes= require("./routes/auth")
 const adminRoutes= require("./routes/admin")
 const Users= require("./routes/User")
 const session = require('express-session');
+configureGoogleAuth(app);
 
 const walletRoutes=require("./routes/wallet")
 let ejs = require('ejs');

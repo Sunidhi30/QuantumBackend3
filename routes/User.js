@@ -904,10 +904,62 @@ router.post('/upload-query', async (req, res) => {
         res.status(500).json({ message: 'Server error' });
     }
 });
+// router.post('/request', protect, async (req, res) => {
+//     try {
+//       const { bankName, amount, transactionId } = req.body;
+      
+//       // Validate input
+//       if (!bankName || !amount || !transactionId) {
+//         return res.status(400).json({ 
+//           success: false, 
+//           message: 'Please provide bank name, amount, and transaction ID' 
+//         });
+//       }
+  
+//       // Check if amount is positive
+//       if (amount <= 0) {
+//         return res.status(400).json({ 
+//           success: false, 
+//           message: 'Amount must be greater than zero' 
+//         });
+//       }
+  
+//       // Check if transaction ID already exists
+//       const existingRequest = await PaymentRequest.findOne({ transactionId });
+//       if (existingRequest) {
+//         return res.status(400).json({ 
+//           success: false, 
+//           message: 'Transaction ID already submitted' 
+//         });
+//       }
+  
+//       // Create payment request
+//       const paymentRequest = new PaymentRequest({
+//         user: req.user._id,
+//         bankName,
+//         amount,
+//         transactionId
+//       });
+  
+//       await paymentRequest.save();
+  
+//       res.status(201).json({
+//         success: true,
+//         message: 'Payment request submitted successfully',
+//         data: paymentRequest
+//       });
+//     } catch (error) {
+//       res.status(500).json({ 
+//         success: false, 
+//         message: 'Error creating payment request',
+//         error: error.message 
+//       });
+//     }
+//   });
 router.post('/request', protect, async (req, res) => {
     try {
       const { bankName, amount, transactionId } = req.body;
-      
+  
       // Validate input
       if (!bankName || !amount || !transactionId) {
         return res.status(400).json({ 
@@ -943,12 +995,45 @@ router.post('/request', protect, async (req, res) => {
   
       await paymentRequest.save();
   
+      // Fetch user email
+      const user = await User.findById(req.user._id);
+      if (!user) {
+        return res.status(404).json({ 
+          success: false, 
+          message: 'User not found' 
+        });
+      }
+  
+      // Send email notification
+      const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: user.email,
+        subject: 'Payment Request Submitted',
+        html: `
+          <h2>Payment Request Submitted Successfully</h2>
+          <p>Dear ${user.username},</p>
+          <p>Your payment request has been submitted successfully with the following details:</p>
+          <ul>
+            <li><strong>Bank Name:</strong> ${bankName}</li>
+            <li><strong>Amount:</strong> ₹${amount}</li>
+            <li><strong>Transaction ID:</strong> ${transactionId}</li>
+            <li><strong>Status:</strong> Pending</li>
+          </ul>
+          <p>We will review your request and update the status soon.</p>
+          <p>Thank you for using our service!</p>
+        `
+      };
+  
+      await transporter.sendMail(mailOptions);
+  
       res.status(201).json({
         success: true,
-        message: 'Payment request submitted successfully',
+        message: 'Payment request submitted successfully. Email confirmation sent.',
         data: paymentRequest
       });
+  
     } catch (error) {
+      console.error('Error creating payment request:', error);
       res.status(500).json({ 
         success: false, 
         message: 'Error creating payment request',
@@ -956,13 +1041,13 @@ router.post('/request', protect, async (req, res) => {
       });
     }
   });
-
+  
 // withdrawls 
 router.post('/withdraw', async (req, res) => {
     try {
       const { userId, amount, bankName, accountHolderName, accountNumber, ifscCode, mobileNumber, upiId } = req.body;
   
-      // Validate the user
+      // Validate user
       const user = await User.findById(userId);
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
@@ -986,28 +1071,105 @@ router.post('/withdraw', async (req, res) => {
       // Generate unique transaction ID
       const transactionId = uuidv4();
   
-      // Create a withdrawal request
+      // Create withdrawal request
       const withdrawalRequest = new PaymentRequest({
         user: userId,
         bankName,
         amount,
         transactionId,
-        status: 'pending',
-        proofImage: '', // Can be updated later if needed
+        status: 'pending'
       });
   
       await withdrawalRequest.save();
   
-      // Deduct the amount from the user's wallet balance
+      // Deduct amount from user's wallet balance
       user.walletBalance -= amount;
       await user.save();
   
+      // Send email notification
+      const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: user.email,
+        subject: 'Withdrawal Request Submitted',
+        html: `
+          <h2>Withdrawal Request Submitted</h2>
+          <p>Hello ${user.username},</p>
+          <p>Your withdrawal request has been submitted successfully. Here are the details:</p>
+          <ul>
+            <li><b>Amount:</b> $${amount}</li>
+            <li><b>Bank Name:</b> ${bankName}</li>
+            <li><b>Transaction ID:</b> ${transactionId}</li>
+            <li><b>Status:</b> Pending</li>
+          </ul>
+          <p>We will process your request soon. Thank you for using our service.</p>
+        `
+      };
+  
+      transporter.sendMail(mailOptions, (error, info) => {
+        if (error) {
+          console.error('Email sending error:', error);
+        } else {
+          console.log('Email sent:', info.response);
+        }
+      });
+  
       res.status(201).json({ message: 'Withdrawal request submitted successfully.', transactionId });
+  
     } catch (error) {
       console.error('Withdrawal error:', error);
       res.status(500).json({ message: 'Internal server error' });
     }
   });
+// router.post('/withdraw', async (req, res) => {
+//     try {
+//       const { userId, amount, bankName, accountHolderName, accountNumber, ifscCode, mobileNumber, upiId } = req.body;
+  
+//       // Validate the user
+//       const user = await User.findById(userId);
+//       if (!user) {
+//         return res.status(404).json({ message: 'User not found' });
+//       }
+  
+//       // Check if the user is blocked
+//       if (user.isBlocked) {
+//         return res.status(403).json({ message: 'Your account is blocked. You cannot withdraw funds.' });
+//       }
+  
+//       // Validate withdrawal amount
+//       if (amount < 200 || amount > 30000) {
+//         return res.status(400).json({ message: 'Withdrawal amount must be between $200 and $30,000.' });
+//       }
+  
+//       // Check if the user has sufficient balance
+//       if (amount > user.walletBalance) {
+//         return res.status(400).json({ message: 'Insufficient wallet balance.' });
+//       }
+  
+//       // Generate unique transaction ID
+//       const transactionId = uuidv4();
+  
+//       // Create a withdrawal request
+//       const withdrawalRequest = new PaymentRequest({
+//         user: userId,
+//         bankName,
+//         amount,
+//         transactionId,
+//         status: 'pending',
+//         proofImage: '', // Can be updated later if needed
+//       });
+  
+//       await withdrawalRequest.save();
+  
+//       // Deduct the amount from the user's wallet balance
+//       user.walletBalance -= amount;
+//       await user.save();
+  
+//       res.status(201).json({ message: 'Withdrawal request submitted successfully.', transactionId });
+//     } catch (error) {
+//       console.error('Withdrawal error:', error);
+//       res.status(500).json({ message: 'Internal server error' });
+//     }
+//   });
   
   router.get('/transactions/:userId', async (req, res) => {
     try {

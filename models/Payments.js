@@ -6,6 +6,7 @@ const paymentRequestSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+
   bankName: {
     type: String,
     required: true

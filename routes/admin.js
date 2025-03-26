@@ -1,6 +1,7 @@
 
 
 const express = require('express');
+const nodemailer = require("nodemailer");
 
 const jwt = require('jsonwebtoken');
 const dotenv = require('dotenv');
@@ -24,7 +25,14 @@ const Quiz = require('../models/Quiz');
 
 // Admin Login (Dynamically Generated OTP)
 
-    
+const transporter = nodemailer.createTransport({
+    service: 'gmail', // Use your email provider
+    auth: {
+      user: process.env.EMAIL_USER, // Admin email (set in environment variables)
+      pass: process.env.EMAIL_PASS // Admin email password (use env variables for security)
+    }
+  });
+  
 // // Middleware to verify admin token
 const verifyAdmin = (req, res, next) => {
     const token = req.header('Authorization');
@@ -759,9 +767,105 @@ router.get('/admin/pending', protect, adminOnly, async (req, res) => {
     }
 });
 
+router.get('/withdrawals',protect,async (req, res) => {
+    try {
+        const withdrawals = await PaymentRequest.find().populate('user', 'username email');
+        res.status(200).json(withdrawals);
+    } catch (error) {
+        console.error('Error fetching withdrawals:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
+router.post('/withdrawals/approve/:id', async (req, res) => {
+    // sir but han vahi na 
+    try {
+        const { id } = req.params;
+        console.log("Received withdrawal request ID:", id);
+
+        if (!id) {
+            return res.status(400).json({ message: 'Invalid withdrawal request ID' });
+        }
+
+        // Search using the correct ID
+        const withdrawalRequest = await PaymentRequest.findOne({transactionId : id}).populate('user');
+      
+  
+        if (!withdrawalRequest) {
+            return res.status(404).json({ message: 'Withdrawal request not found' });
+        }
+
+        console.log("Found withdrawal request:", withdrawalRequest);
+        res.status(200).json(withdrawalRequest);
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
+router.post('/withdrawals/reject/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { reason } = req.body; // Admin provides a reason for rejection
+        const withdrawalRequest = await PaymentRequest.findOne({transactionId : id}).populate('user');
+
+        if (!withdrawalRequest) {
+            return res.status(404).json({ message: 'Withdrawal request not found' });
+        }
+
+        if (withdrawalRequest.status !== 'pending') {
+            return res.status(400).json({ message: 'This withdrawal request has already been processed.' });
+        }
+
+        // Refund amount back to user's wallet
+        const user = await User.findById(withdrawalRequest.user._id);
+        console.log("users is ", user);
+        user.walletBalance += withdrawalRequest.amount;
+        await user.save();
+
+        // Update status to 'rejected'
+        withdrawalRequest.status = 'rejected';
+        withdrawalRequest.rejectionReason = reason || 'Not specified';
+        await withdrawalRequest.save();
+
+        // Send email notification to the user
+        const mailOptions = {
+            from: process.env.EMAIL_USER,
+            to: withdrawalRequest.user.email,
+            subject: 'Withdrawal Request Rejected',
+            html: `
+                <h2>Withdrawal Request Rejected</h2>
+                <p>Hello ${withdrawalRequest.user.username},</p>
+                <p>Unfortunately, your withdrawal request has been rejected.</p>
+                <ul>
+                    <li><b>Amount:</b> $${withdrawalRequest.amount}</li>
+                    <li><b>Bank Name:</b> ${withdrawalRequest.bankName}</li>
+                    <li><b>Transaction ID:</b> ${withdrawalRequest.transactionId}</li>
+                    <li><b>Status:</b> Rejected</li>
+                    <li><b>Reason:</b> ${reason || 'Not specified'}</li>
+                </ul>
+                <p>The requested amount has been refunded to your wallet.</p>
+                <p>If you have any questions, please contact support.</p>
+            `
+        };
+
+        transporter.sendMail(mailOptions, (error, info) => {
+            if (error) {
+                console.error('Email sending error:', error);
+            } else {
+                console.log('Rejection email sent:', info.response);
+            }
+        });
+
+        res.status(200).json({ message: 'Withdrawal request rejected successfully and amount refunded.' });
+
+    } catch (error) {
+        console.error('Error rejecting withdrawal:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
 
   // status of the payements
   
 module.exports = router;
 // admin token 
-// eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZG1pbklkIjoiaGFyZGNvZGVkX2FkbWluX2lkIiwicm9sZSI6ImFkbWluIiwiZW1haWwiOiJzdW5pZGhpQGdtYWlsLmNvbSIsImlhdCI6MTc0Mjk3NzQyMywiZXhwIjoxNzQzMDYzODIzfQ.WF4UJoqI6VsIzXXRe_y4PPx0Xw6Ui5FxMo0NnqSfCkw

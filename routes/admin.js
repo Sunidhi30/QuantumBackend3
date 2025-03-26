@@ -16,6 +16,8 @@ const JWT_SECRET = process.env.JWT_SECRET || "Apple";
 const Plan = require('../models/Plan'); 
 const FAQ = require("../models/FAQ"); // Import the FAQ model
 const Reward = require('../models/Rewards');
+const PaymentRequest = require('../models/Payments');
+
 dotenv.config();
 const router = express.Router();
 const Quiz = require('../models/Quiz');
@@ -49,6 +51,7 @@ router.post('/login', (req, res) => {
 
     res.json({ msg: 'OTP sent (0000 for now)', otp: ADMIN_OTP });
 });
+
 
 // 2️⃣ **Verify Admin OTP & Issue Token**
 // router.post('/verify-login-otp', (req, res) => {
@@ -158,9 +161,25 @@ router.get('/withdrawal-stats', protect, adminOnly, async (req, res) => {
 // });
 
 // ✅ Approve/Reject KYC (Admin Manually Verifies Documents)
+// router.put('/kyc-approve/:userId', protect, adminOnly, async (req, res) => {
+//     try {
+//         const { status } = req.body;
+//         if (!['verified', 'rejected'].includes(status)) {
+//             return res.status(400).json({ message: "Invalid status" });
+//         }
+
+//         const user = await User.findByIdAndUpdate(req.params.userId, { kycStatus: status }, { new: true });
+//         if (!user) return res.status(404).json({ message: "User not found" });
+
+//         res.json({ success: true, message: `KYC ${status}` });
+//     } catch (error) {
+//         res.status(500).json({ error: error.message });
+//     }
+// });
 router.put('/kyc-approve/:userId', protect, adminOnly, async (req, res) => {
     try {
-        const { status } = req.body;
+        const { status, reason } = req.body;
+
         if (!['verified', 'rejected'].includes(status)) {
             return res.status(400).json({ message: "Invalid status" });
         }
@@ -168,7 +187,25 @@ router.put('/kyc-approve/:userId', protect, adminOnly, async (req, res) => {
         const user = await User.findByIdAndUpdate(req.params.userId, { kycStatus: status }, { new: true });
         if (!user) return res.status(404).json({ message: "User not found" });
 
-        res.json({ success: true, message: `KYC ${status}` });
+        // Email content
+        let subject, text;
+        if (status === 'verified') {
+            subject = "KYC Approved ✅";
+            text = `Dear ${user.username},\n\nYour KYC has been successfully approved! You can now access all platform features.\n\nBest Regards,\nYour Company`;
+        } else {
+            subject = "KYC Rejected ❌";
+            text = `Dear ${user.username},\n\nUnfortunately, your KYC has been rejected for the following reason: ${reason || "Not specified"}.\nPlease re-submit your documents.\n\nBest Regards,\nYour Company`;
+        }
+
+        // Send Email Notification
+        await transporter.sendMail({
+            from: process.env.EMAIL_USER,
+            to: user.email,
+            subject,
+            text,
+        });
+
+        res.json({ success: true, message: `KYC ${status} and email sent` });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -674,6 +711,56 @@ router.post('/add-reward',protect, async (req, res) => {
       res.status(500).json({ message: 'Server error', error: error.message });
     }
   });
+  router.put('/admin/approve/:id', protect, adminOnly, async (req, res) => {
+    try {
+        const { status, adminNotes } = req.body;
+        const paymentRequest = await PaymentRequest.findById(req.params.id);
+
+        if (!paymentRequest) {
+            return res.status(404).json({ success: false, message: 'Payment request not found' });
+        }
+
+        if (status !== 'approved' && status !== 'rejected') {
+            return res.status(400).json({ success: false, message: 'Invalid status. Use approved or rejected' });
+        }
+
+        // If approved, add amount to user wallet
+        if (status === 'approved') {
+            const user = await User.findById(paymentRequest.user);
+            if (!user) {
+                return res.status(404).json({ success: false, message: 'User not found' });
+            }
+
+            user.walletBalance += paymentRequest.amount;
+            await user.save();
+        }
+
+        // Update payment request status
+        paymentRequest.status = status;
+        paymentRequest.adminNotes = adminNotes;
+        paymentRequest.adminId = req.user._id;
+        await paymentRequest.save();
+
+        res.status(200).json({
+            success: true,
+            message: `Payment request ${status} successfully`,
+            data: paymentRequest
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Error updating payment request', error: error.message });
+    }
+});
+router.get('/admin/pending', protect, adminOnly, async (req, res) => {
+    try {
+        const pendingRequests = await PaymentRequest.find({ status: 'pending' }).populate('user', 'username email');
+        res.status(200).json({ success: true, data: pendingRequests });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Error fetching payment requests', error: error.message });
+    }
+});
+
+
+  // status of the payements
   
 module.exports = router;
 // admin token 

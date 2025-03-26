@@ -14,6 +14,9 @@ const { body, validationResult } = require('express-validator');
 const Reward = require('../models/Rewards');
 const nodemailer = require("nodemailer");
 const Quiz = require("../models/Quiz");
+const PaymentRequest = require('../models/Payments');
+const { v4: uuidv4 } = require('uuid');
+
 const transporter = nodemailer.createTransport({
     service: 'gmail', // Use your email provider
     auth: {
@@ -377,77 +380,77 @@ router.get('/kyc-documents', protect, async (req, res) => {
 
 
 // investments plans acocrding tot he user 
-router.post('/invest', protect, async (req, res) => {
-    try {
-        const { planId, amount, paymentMethod, paymentDetails } = req.body;
-        const userId = req.user.id; // Assuming `req.user` contains the authenticated user's details
+// router.post('/invest', protect, async (req, res) => {
+//     try {
+//         const { planId, amount, paymentMethod, paymentDetails } = req.body;
+//         const userId = req.user.id; // Assuming `req.user` contains the authenticated user's details
 
-        // Validate required fields
-        if (!planId || !amount || !paymentMethod) {
-            return res.status(400).json({ message: "Missing required fields" });
-        }
+//         // Validate required fields
+//         if (!planId || !amount || !paymentMethod) {
+//             return res.status(400).json({ message: "Missing required fields" });
+//         }
 
-        // Check if the plan exists
-        const plan = await Plan.findById(planId);
-        if (!plan || !plan.isActive) {
-            return res.status(404).json({ message: "Plan not found or inactive" });
-        }
+//         // Check if the plan exists
+//         const plan = await Plan.findById(planId);
+//         if (!plan || !plan.isActive) {
+//             return res.status(404).json({ message: "Plan not found or inactive" });
+//         }
 
-        // Validate investment amount
-        if (amount < plan.minInvestment || amount > plan.maxInvestment) {
-            return res.status(400).json({ message: `Investment amount must be between ${plan.minInvestment} and ${plan.maxInvestment}` });
-        }
+//         // Validate investment amount
+//         if (amount < plan.minInvestment || amount > plan.maxInvestment) {
+//             return res.status(400).json({ message: `Investment amount must be between ${plan.minInvestment} and ${plan.maxInvestment}` });
+//         }
 
-        // Fetch the user
-        const user = await User.findById(userId);
-        if (!user) {
-            return res.status(404).json({ message: "User not found" });
-        }
+//         // Fetch the user
+//         const user = await User.findById(userId);
+//         if (!user) {
+//             return res.status(404).json({ message: "User not found" });
+//         }
 
-        // Check if the user has enough wallet balance (optional)
-        // i will used after I intergrate the payements gateway
-        // if (user.walletBalance < amount) {
-        //     return res.status(400).json({ message: "Insufficient wallet balance" });
-        // }
+//         // Check if the user has enough wallet balance (optional)
+//         // i will used after I intergrate the payements gateway
+//         // if (user.walletBalance < amount) {
+//         //     return res.status(400).json({ message: "Insufficient wallet balance" });
+//         // }
 
-        // Calculate maturity date (Assuming the longest tenure is used)
-        const tenureInMonths = parseInt(plan.tenureOptions[plan.tenureOptions.length - 1]); // Get the last tenure option
-        const maturityDate = new Date();
-        maturityDate.setMonth(maturityDate.getMonth() + tenureInMonths);
+//         // Calculate maturity date (Assuming the longest tenure is used)
+//         const tenureInMonths = parseInt(plan.tenureOptions[plan.tenureOptions.length - 1]); // Get the last tenure option
+//         const maturityDate = new Date();
+//         maturityDate.setMonth(maturityDate.getMonth() + tenureInMonths);
 
-        // Calculate maturity amount (Simple calculation: Principal + (APR % over tenure))
-        const maturityAmount = amount + (amount * (plan.apy / 100));
+//         // Calculate maturity amount (Simple calculation: Principal + (APR % over tenure))
+//         const maturityAmount = amount + (amount * (plan.apy / 100));
 
-        // Create new investment record
-        const newInvestment = new Investment({
-            user: userId,
-            plan: planId,
-            planName: plan.name,
-            amount,
-            apr: plan.apy,
-            startDate: new Date(),
-            endDate: maturityDate,
-            maturityAmount,
-            paymentMethod,
-            paymentDetails,
-            payoutFrequency: plan.paymentOptions[0], // Default to the first payment option
-            status: "pending"
-        });
+//         // Create new investment record
+//         const newInvestment = new Investment({
+//             user: userId,
+//             plan: planId,
+//             planName: plan.name,
+//             amount,
+//             apr: plan.apy,
+//             startDate: new Date(),
+//             endDate: maturityDate,
+//             maturityAmount,
+//             paymentMethod,
+//             paymentDetails,
+//             payoutFrequency: plan.paymentOptions[0], // Default to the first payment option
+//             status: "pending"
+//         });
 
-        await newInvestment.save();
+//         await newInvestment.save();
 
-        // Deduct amount from user's wallet (if applicable)
-        user.walletBalance -= amount;
-        user.totalInvestment += amount;
-        await user.save();
+//         // Deduct amount from user's wallet (if applicable)
+//         user.walletBalance -= amount;
+//         user.totalInvestment += amount;
+//         await user.save();
 
-        res.status(201).json({ success: true, investment: newInvestment });
+//         res.status(201).json({ success: true, investment: newInvestment });
 
-    } catch (error) {
-        console.error("Error in investment:", error);
-        res.status(500).json({ error: error.message });
-    }
-});
+//     } catch (error) {
+//         console.error("Error in investment:", error);
+//         res.status(500).json({ error: error.message });
+//     }
+// });
 // invest money in the plan 
 router.post("/investments/create", protect, async (req, res) => {
     try {
@@ -847,7 +850,7 @@ router.post('/upload-query', async (req, res) => {
   });  
   router.post('/buy', async (req, res) => {
     try {
-        const { userId, planId, amount, paymentMethod } = req.body;
+        const { userId, planId, units, paymentMethod } = req.body;
 
         // Fetch user and plan details
         const user = await User.findById(userId);
@@ -857,26 +860,32 @@ router.post('/upload-query', async (req, res) => {
             return res.status(404).json({ message: 'User or Plan not found' });
         }
 
+        // Calculate total amount based on units
+        const pricePerUnit = plan.pricePerUnit; // Assume this exists in Plan schema
+        const totalAmount = pricePerUnit * units;
+
         // Check if user has enough balance
-        if (user.walletBalance < amount) {
+        if (user.walletBalance < totalAmount) {
             return res.status(400).json({ message: 'Insufficient wallet balance' });
         }
 
         // Calculate maturity amount based on APR
         const apr = plan.apr;
         const duration = plan.duration; // Assuming in months
-        const maturityAmount = amount * (1 + (apr / 100) * (duration / 12));
+        const maturityAmount = totalAmount * (1 + (apr / 100) * (duration / 12));
 
         // Deduct amount from wallet balance
-        user.walletBalance -= amount;
-        user.totalInvestment += amount;
+        user.walletBalance -= totalAmount;
+        user.totalInvestment += totalAmount;
 
         // Create investment entry
         const investment = new Investment({
             user: userId,
             plan: planId,
             planName: plan.name,
-            amount,
+            units,
+            pricePerUnit,
+            amount: totalAmount,
             apr,
             startDate: new Date(),
             endDate: new Date(new Date().setMonth(new Date().getMonth() + duration)),
@@ -893,6 +902,130 @@ router.post('/upload-query', async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });
+    }
+});
+router.post('/request', protect, async (req, res) => {
+    try {
+      const { bankName, amount, transactionId } = req.body;
+      
+      // Validate input
+      if (!bankName || !amount || !transactionId) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Please provide bank name, amount, and transaction ID' 
+        });
+      }
+  
+      // Check if amount is positive
+      if (amount <= 0) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Amount must be greater than zero' 
+        });
+      }
+  
+      // Check if transaction ID already exists
+      const existingRequest = await PaymentRequest.findOne({ transactionId });
+      if (existingRequest) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Transaction ID already submitted' 
+        });
+      }
+  
+      // Create payment request
+      const paymentRequest = new PaymentRequest({
+        user: req.user._id,
+        bankName,
+        amount,
+        transactionId
+      });
+  
+      await paymentRequest.save();
+  
+      res.status(201).json({
+        success: true,
+        message: 'Payment request submitted successfully',
+        data: paymentRequest
+      });
+    } catch (error) {
+      res.status(500).json({ 
+        success: false, 
+        message: 'Error creating payment request',
+        error: error.message 
+      });
+    }
+  });
+
+// withdrawls 
+router.post('/withdraw', async (req, res) => {
+    try {
+      const { userId, amount, bankName, accountHolderName, accountNumber, ifscCode, mobileNumber, upiId } = req.body;
+  
+      // Validate the user
+      const user = await User.findById(userId);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+  
+      // Check if the user is blocked
+      if (user.isBlocked) {
+        return res.status(403).json({ message: 'Your account is blocked. You cannot withdraw funds.' });
+      }
+  
+      // Validate withdrawal amount
+      if (amount < 200 || amount > 30000) {
+        return res.status(400).json({ message: 'Withdrawal amount must be between $200 and $30,000.' });
+      }
+  
+      // Check if the user has sufficient balance
+      if (amount > user.walletBalance) {
+        return res.status(400).json({ message: 'Insufficient wallet balance.' });
+      }
+  
+      // Generate unique transaction ID
+      const transactionId = uuidv4();
+  
+      // Create a withdrawal request
+      const withdrawalRequest = new PaymentRequest({
+        user: userId,
+        bankName,
+        amount,
+        transactionId,
+        status: 'pending',
+        proofImage: '', // Can be updated later if needed
+      });
+  
+      await withdrawalRequest.save();
+  
+      // Deduct the amount from the user's wallet balance
+      user.walletBalance -= amount;
+      await user.save();
+  
+      res.status(201).json({ message: 'Withdrawal request submitted successfully.', transactionId });
+    } catch (error) {
+      console.error('Withdrawal error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+  
+  router.get('/transactions/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+
+        // Check if the user exists
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Fetch all transactions for the user
+        const transactions = await PaymentRequest.find({ user: userId }).sort({ createdAt: -1 });
+
+        res.status(200).json({ success: true, transactions });
+    } catch (error) {
+        console.error('Error fetching transactions:', error);
+        res.status(500).json({ success: false, message: 'Internal server error' });
     }
 });
 router.post('/sell', async (req, res) => {

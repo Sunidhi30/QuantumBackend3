@@ -845,6 +845,99 @@ router.post('/upload-query', async (req, res) => {
       res.status(500).json({ message: 'Server error', error: error.message });
     }
   });  
+  router.post('/buy', async (req, res) => {
+    try {
+        const { userId, planId, amount, paymentMethod } = req.body;
+
+        // Fetch user and plan details
+        const user = await User.findById(userId);
+        const plan = await Plan.findById(planId);
+
+        if (!user || !plan) {
+            return res.status(404).json({ message: 'User or Plan not found' });
+        }
+
+        // Check if user has enough balance
+        if (user.walletBalance < amount) {
+            return res.status(400).json({ message: 'Insufficient wallet balance' });
+        }
+
+        // Calculate maturity amount based on APR
+        const apr = plan.apr;
+        const duration = plan.duration; // Assuming in months
+        const maturityAmount = amount * (1 + (apr / 100) * (duration / 12));
+
+        // Deduct amount from wallet balance
+        user.walletBalance -= amount;
+        user.totalInvestment += amount;
+
+        // Create investment entry
+        const investment = new Investment({
+            user: userId,
+            plan: planId,
+            planName: plan.name,
+            amount,
+            apr,
+            startDate: new Date(),
+            endDate: new Date(new Date().setMonth(new Date().getMonth() + duration)),
+            maturityAmount,
+            paymentMethod,
+            status: 'active'
+        });
+
+        await investment.save();
+        await user.save();
+
+        res.status(201).json({ message: 'Investment successful', investment });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+router.post('/sell', async (req, res) => {
+    try {
+        const { userId, investmentId } = req.body;
+
+        // Fetch investment and user
+        const investment = await Investment.findById(investmentId);
+        const user = await User.findById(userId);
+
+        if (!investment || !user) {
+            return res.status(404).json({ message: 'Investment or User not found' });
+        }
+
+        // Check if investment is already completed or cancelled
+        if (investment.status !== 'active') {
+            return res.status(400).json({ message: 'Investment cannot be sold' });
+        }
+
+        // Check if the investment is eligible for selling
+        const currentDate = new Date();
+        if (currentDate < investment.endDate) {
+            return res.status(400).json({ message: 'Investment cannot be sold before maturity' });
+        }
+
+        // Calculate the payout amount
+        const payoutAmount = investment.maturityAmount;
+
+        // Update user wallet balance
+        user.walletBalance += payoutAmount;
+
+        // Update investment status
+        investment.status = 'completed';
+
+        await investment.save();
+        await user.save();
+
+        res.status(200).json({ message: 'Investment sold successfully', payoutAmount });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 module.exports = router;
 //67e02ee2abbc823b4505e9a7
 //sunidhiratra21@gmail.com:67e01a39035bcb0216d1d471

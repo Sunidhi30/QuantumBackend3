@@ -676,4 +676,5 @@ router.post('/add-reward',protect, async (req, res) => {
   });
   
 module.exports = router;
-// eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZG1pbklkIjoiaGFyZGNvZGVkX2FkbWluX2lkIiwicm9sZSI6ImFkbWluIiwiZW1haWwiOiJzdW5pZGhpQGdtYWlsLmNvbSIsImlhdCI6MTc0Mjg5NDg3NywiZXhwIjoxNzQyOTgxMjc3fQ.3BUD1eIOq8zcZ2DTsijiKEIY-RSiN3RImotEBWAR7-g
+// admin token 
+// eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZG1pbklkIjoiaGFyZGNvZGVkX2FkbWluX2lkIiwicm9sZSI6ImFkbWluIiwiZW1haWwiOiJzdW5pZGhpQGdtYWlsLmNvbSIsImlhdCI6MTc0Mjk3NzQyMywiZXhwIjoxNzQzMDYzODIzfQ.WF4UJoqI6VsIzXXRe_y4PPx0Xw6Ui5FxMo0NnqSfCkw

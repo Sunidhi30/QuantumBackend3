@@ -269,3 +269,4 @@ router.get('/admin/dashboard', authenticateAdmin, (req, res) => {
 });
 
 module.exports = router;
+// new  user  token : eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2N2UzYjIzNTA1OWQzNDExODM0YTRiNDIiLCJpYXQiOjE3NDI5NzU5NzMsImV4cCI6MTc0MzA2MjM3M30.r29tJ3469F1w5RWxAtkso7prHLtMYfL85OKe1FPp5a8

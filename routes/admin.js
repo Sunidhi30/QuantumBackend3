@@ -18,6 +18,7 @@ const Plan = require('../models/Plan');
 const FAQ = require("../models/FAQ"); // Import the FAQ model
 const Reward = require('../models/Rewards');
 const PaymentRequest = require('../models/Payments');
+const { body, validationResult } = require('express-validator');
 
 dotenv.config();
 const router = express.Router();
@@ -719,53 +720,125 @@ router.post('/add-reward',protect, async (req, res) => {
       res.status(500).json({ message: 'Server error', error: error.message });
     }
   });
-  router.put('/admin/approve/:id', protect, adminOnly, async (req, res) => {
+//   router.put('/admin/approve/:id', protect, adminOnly, async (req, res) => {
+//     try {
+//         const { status, adminNotes } = req.body;
+//         const paymentRequest = await PaymentRequest.findById(req.params.id);
+
+//         if (!paymentRequest) {
+//             return res.status(404).json({ success: false, message: 'Payment request not found' });
+//         }
+
+//         if (status !== 'approved' && status !== 'rejected') {
+//             return res.status(400).json({ success: false, message: 'Invalid status. Use approved or rejected' });
+//         }
+
+//         // If approved, add amount to user wallet
+//         if (status === 'approved') {
+//             const user = await User.findById(paymentRequest.user);
+//             if (!user) {
+//                 return res.status(404).json({ success: false, message: 'User not found' });
+//             }
+
+//             user.walletBalance += paymentRequest.amount;
+//             await user.save();
+//         }
+
+//         // Update payment request status
+//         paymentRequest.status = status;
+//         paymentRequest.adminNotes = adminNotes;
+//         paymentRequest.adminId = req.user._id;
+//         await paymentRequest.save();
+
+//         res.status(200).json({
+//             success: true,
+//             message: `Payment request ${status} successfully`,
+//             data: paymentRequest
+//         });
+//     } catch (error) {
+//         res.status(500).json({ success: false, message: 'Error updating payment request', error: error.message });
+//     }
+// });
+router.put('/admin/approve/:id', protect, adminOnly, async (req, res) => {
     try {
         const { status, adminNotes } = req.body;
-        const paymentRequest = await PaymentRequest.findById(req.params.id);
 
+        // Validate status
+        if (!['approved', 'rejected'].includes(status)) {
+            return res.status(400).json({ success: false, message: 'Invalid status. Use "approved" or "rejected".' });
+        }
+
+        // Find payment request
+        const paymentRequest = await PaymentRequest.findById(req.params.id).populate('user', 'email username walletBalance');
         if (!paymentRequest) {
             return res.status(404).json({ success: false, message: 'Payment request not found' });
         }
 
-        if (status !== 'approved' && status !== 'rejected') {
-            return res.status(400).json({ success: false, message: 'Invalid status. Use approved or rejected' });
+        // Prevent duplicate approval/rejection
+        if (paymentRequest.status === 'approved' || paymentRequest.status === 'rejected') {
+            return res.status(400).json({ success: false, message: `This request is already ${paymentRequest.status}` });
         }
 
-        // If approved, add amount to user wallet
-        if (status === 'approved') {
-            const user = await User.findById(paymentRequest.user);
-            if (!user) {
-                return res.status(404).json({ success: false, message: 'User not found' });
-            }
+        const user = paymentRequest.user;
 
+        // If rejected, ensure a reason is provided
+        if (status === 'rejected' && !adminNotes) {
+            return res.status(400).json({ success: false, message: 'Rejection reason is required.' });
+        }
+
+        // If approved, add the amount to the user's wallet
+        if (status === 'approved') {
             user.walletBalance += paymentRequest.amount;
             await user.save();
         }
 
         // Update payment request status
         paymentRequest.status = status;
-        paymentRequest.adminNotes = adminNotes;
+        paymentRequest.adminNotes = adminNotes || '';
         paymentRequest.adminId = req.user._id;
         await paymentRequest.save();
 
+        // Send email notification
+        const mailOptions = {
+            from: process.env.EMAIL_USER,
+            to: user.email,
+            subject: `Payment Request ${status === 'approved' ? 'Approved' : 'Rejected'}`,
+            html: `
+                <h2>Payment Request ${status === 'approved' ? 'Approved' : 'Rejected'}</h2>
+                <p>Dear ${user.username},</p>
+                <p>Your payment request has been <strong>${status}</strong>.</p>
+                <ul>
+                    <li><strong>Transaction ID:</strong> ${paymentRequest.transactionId}</li>
+                    <li><strong>Amount:</strong> ₹${paymentRequest.amount}</li>
+                    <li><strong>Bank Name:</strong> ${paymentRequest.bankName}</li>
+                    ${status === 'rejected' ? `<li><strong>Rejection Reason:</strong> ${adminNotes}</li>` : ''}
+                </ul>
+                <p>${status === 'approved' ? 'Your wallet has been credited successfully.' : 'Please review the reason and try again.'}</p>
+            `
+        };
+
+        await transporter.sendMail(mailOptions);
+
         res.status(200).json({
             success: true,
-            message: `Payment request ${status} successfully`,
+            message: `Payment request ${status} successfully.`,
             data: paymentRequest
         });
+
     } catch (error) {
+        console.error('Error updating payment request:', error);
         res.status(500).json({ success: false, message: 'Error updating payment request', error: error.message });
     }
 });
-router.get('/admin/pending', protect, adminOnly, async (req, res) => {
-    try {
-        const pendingRequests = await PaymentRequest.find({ status: 'pending' }).populate('user', 'username email');
-        res.status(200).json({ success: true, data: pendingRequests });
-    } catch (error) {
-        res.status(500).json({ success: false, message: 'Error fetching payment requests', error: error.message });
-    }
-});
+
+// router.get('/admin/pending', protect, adminOnly, async (req, res) => {
+//     try {
+//         const pendingRequests = await PaymentRequest.find({ status: 'pending' }).populate('user', 'username email');
+//         res.status(200).json({ success: true, data: pendingRequests });
+//     } catch (error) {
+//         res.status(500).json({ success: false, message: 'Error fetching payment requests', error: error.message });
+//     }
+// });
 
 router.get('/withdrawals',protect,async (req, res) => {
     try {
@@ -865,7 +938,6 @@ router.post('/withdrawals/reject/:id', async (req, res) => {
     }
 });
 
-  // status of the payements
   
 module.exports = router;
 // admin token 

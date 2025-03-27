@@ -139,22 +139,28 @@ router.get('/plans/category/:category', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-router.get('/plans/type/:category', async (req, res) => {
+router.get('/plans/type/:type', async (req, res) => {
     try {
-        const category = req.params.type.toLowerCase(); // ✅ Convert to lowercase
+        const { type } = req.params;
 
-        const plans = await Plan.find({ category });
+        // Ensure the provided type matches the enum values
+        if (!['Quantum Wealth Fund', 'Quantum Globe Fund', 'Quantum Blockchain-AI Fund'].includes(type)) {
+            return res.status(400).json({ success: false, msg: 'Invalid plan type' });
+        }
 
-        if (plans.length === 0) {
-            return res.status(404).json({ msg: 'No plans found for this category' });
+        const plans = await Plan.find({ type });
+
+        if (!plans.length) {
+            return res.status(404).json({ success: false, msg: 'No plans found for this type' });
         }
 
         res.json({ success: true, plans });
 
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ success: false, error: error.message });
     }
 });
+
 // deal highlights 
 // router.get("/plans/deal-highlights", protect, async (req, res) => {
 //     try {

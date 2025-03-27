@@ -19,7 +19,9 @@ const FAQ = require("../models/FAQ"); // Import the FAQ model
 const Reward = require('../models/Rewards');
 const PaymentRequest = require('../models/Payments');
 const { body, validationResult } = require('express-validator');
-const upload = require('../utils/multer'); // Import the multer middleware
+const multer = require("multer");
+
+const upload = multer({ storage: multer.memoryStorage() });
 
 dotenv.config();
 const router = express.Router();
@@ -323,71 +325,149 @@ router.put('/kyc-approve/:userId', protect, adminOnly, async (req, res) => {
 //         res.status(500).json({ error: error.message });
 //     }
 // });
-router.post('/plans', protect, adminOnly, async (req, res) => {
-    try {
-        const { 
-            name, 
-            type, 
-            category, 
-            description, 
-            apy, 
-            tenureOptions, 
-            paymentShield, 
-            minInvestment, 
-            maxInvestment, 
-            dividend, 
-            reward, 
-            paymentOptions, 
-            riskLevel,
-            dealHighlights  // ✅ Now included
+
+// router.post('/plans', protect, adminOnly, async (req, res) => {
+//     try {
+//         const { 
+//             name, 
+//             type, 
+//             category, 
+//             description, 
+//             apy, 
+//             tenureOptions, 
+//             paymentShield, 
+//             minInvestment, 
+//             maxInvestment, 
+//             dividend, 
+//             reward, 
+//             paymentOptions, 
+//             riskLevel,
+//             dealHighlights  // ✅ Now included
+//         } = req.body;
+
+//         // Validate required fields
+//         if (!name || !type || !category || !description || !apy || !tenureOptions || !minInvestment || !maxInvestment || !dividend || !riskLevel) {
+//             return res.status(400).json({ message: "Missing required fields" });
+//         }
+
+//         // Validate category
+//         // const validCategories = ['low_risk', 'tax_saving', 'AI_funds','sip', 'high_yield', 'blockchain_funds'];
+//         // if (!validCategories.includes(category)) {
+//         //     return res.status(400).json({ message: "Invalid category" });
+//         // }
+
+//         // Ensure dealHighlights is properly structured
+//         const highlights = dealHighlights || {
+//             apy: apy || 0,
+//             paymentShield: paymentShield?.isAvailable || false,
+//             minInvestment: minInvestment || 0,
+//             maturityDate: null,
+//             reward: reward || "No reward",
+//             dividend: dividend || 0
+//         };
+
+//         // Create new investment plan
+//         const newPlan = new Plan({
+//             name,
+//             type,
+//             category,
+//             description,
+//             apy,
+//             tenureOptions,
+//             paymentShield,
+//             minInvestment,
+//             maxInvestment,
+//             dividend,
+//             reward,
+//             paymentOptions,
+//             riskLevel,
+//             dealHighlights: highlights // ✅ Now always included
+//         });
+
+//         await newPlan.save();
+
+//         res.status(201).json({ success: true, plan: newPlan });
+//     } catch (error) {
+//         res.status(500).json({ error: error.message });
+//     }
+// });
+// above one was working fine 
+// below is for image 
+router.post(
+    "/plans",
+    protect,
+    adminOnly,
+    upload.fields([{ name: "planImages", maxCount: 5 }]), // Allow up to 5 images
+    async (req, res) => {
+      try {
+        const {
+          name,
+          type,
+          category,
+          description,
+          apy,
+          tenureOptions,
+          paymentShield,
+          minInvestment,
+          maxInvestment,
+          dividend,
+          reward,
+          paymentOptions,
+          riskLevel,
+          dealHighlights,
         } = req.body;
-
-        // Validate required fields
+  
         if (!name || !type || !category || !description || !apy || !tenureOptions || !minInvestment || !maxInvestment || !dividend || !riskLevel) {
-            return res.status(400).json({ message: "Missing required fields" });
+          return res.status(400).json({ message: "Missing required fields" });
         }
-
-        // Validate category
-        // const validCategories = ['low_risk', 'tax_saving', 'AI_funds','sip', 'high_yield', 'blockchain_funds'];
-        // if (!validCategories.includes(category)) {
-        //     return res.status(400).json({ message: "Invalid category" });
-        // }
-
-        // Ensure dealHighlights is properly structured
+  
+        // Process image uploads
+        let planImages = [];
+        if (req.files.planImages) {
+          planImages = await Promise.all(
+            req.files.planImages.map(async (file) => {
+              const base64 = `data:${file.mimetype};base64,${file.buffer.toString("base64")}`;
+              return await uploadToCloudinary(base64, "plan_images", file.mimetype);
+            })
+          );
+        }
+  
         const highlights = dealHighlights || {
-            apy: apy || 0,
-            paymentShield: paymentShield?.isAvailable || false,
-            minInvestment: minInvestment || 0,
-            maturityDate: null,
-            reward: reward || "No reward",
-            dividend: dividend || 0
+          apy: apy || 0,
+          paymentShield: paymentShield?.isAvailable || false,
+          minInvestment: minInvestment || 0,
+          maturityDate: null,
+          reward: reward || "No reward",
+          dividend: dividend || 0,
         };
-
-        // Create new investment plan
+  
         const newPlan = new Plan({
-            name,
-            type,
-            category,
-            description,
-            apy,
-            tenureOptions,
-            paymentShield,
-            minInvestment,
-            maxInvestment,
-            dividend,
-            reward,
-            paymentOptions,
-            riskLevel,
-            dealHighlights: highlights // ✅ Now always included
+          name,
+          type,
+          category,
+          description,
+          apy,
+          tenureOptions,
+          paymentShield,
+          minInvestment,
+          maxInvestment,
+          dividend,
+          reward,
+          paymentOptions,
+          riskLevel,
+          dealHighlights: highlights,
+          planImages, // Store image URLs in the database
         });
-
+  
         await newPlan.save();
-
+  
         res.status(201).json({ success: true, plan: newPlan });
-    } catch (error) {
+      } catch (error) {
         res.status(500).json({ error: error.message });
+      }
     }
-});
+  );
+  
 
 router.get('/plans', protect, adminOnly, async (req, res) => {
     try {

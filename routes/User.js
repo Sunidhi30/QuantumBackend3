@@ -273,58 +273,7 @@ router.post(
       }
     }
   );
-// get all the documents uploaded 
-// router.get('/kyc-documents', protect, async (req, res) => {
-//     try {
-//         const user = await User.findById(req.user.id);
 
-//         if (!user) {
-//             return res.status(404).json({ message: "User not found" });
-//         }
-
-//         if (!user.kycDocuments) {
-//             return res.status(404).json({ message: "No KYC documents found" });
-//         }
-
-//         res.status(200).json({
-//             success: true,
-//             kycDocuments: user.kycDocuments,
-//             kycStatus: user.kycStatus
-//         });
-
-//     } catch (error) {
-//         console.error("Error fetching KYC documents:", error);
-//         res.status(500).json({ message: "Internal server error" });
-//     }
-// });
-// router.get('/kyc-documents', protect, async (req, res) => {
-//     try {
-//         const user = await User.findById(req.user.id);
-
-//         if (!user) {
-//             return res.status(404).json({ message: "User not found" });
-//         }
-
-//         if (!user.kycDocuments) {
-//             return res.status(404).json({ message: "No KYC documents found" });
-//         }
-
-//         // Ensure Cloudinary URLs are returned
-//         res.status(200).json({
-//             success: true,
-//             kycDocuments: {
-//                 idProof: user.kycDocuments.idProof || null,
-//                 panCard: user.kycDocuments.panCard || null,
-//                 addressProof: user.kycDocuments.addressProof || null,
-//             },
-//             kycStatus: user.kycStatus
-//         });
-
-//     } catch (error) {
-//         console.error("Error fetching KYC documents:", error);
-//         res.status(500).json({ message: "Internal server error" });
-//     }
-// });
 router.get('/kyc-documents', protect, async (req, res) => {
     try {
         const user = await User.findById(req.user.id);

@@ -876,65 +876,152 @@ router.post('/withdrawals/approve/:id', async (req, res) => {
     }
 });
 
-router.post('/withdrawals/reject/:id', async (req, res) => {
+router.put('/admin/withdraws/:id', protect, adminOnly, async (req, res) => {
     try {
-        const { id } = req.params;
-        const { reason } = req.body; // Admin provides a reason for rejection
-        const withdrawalRequest = await PaymentRequest.findOne({transactionId : id}).populate('user');
+        const { status, adminNotes } = req.body;
 
-        if (!withdrawalRequest) {
-            return res.status(404).json({ message: 'Withdrawal request not found' });
+        // Validate status
+        if (!['approved', 'rejected'].includes(status)) {
+            return res.status(400).json({ success: false, message: 'Invalid status. Use "approved" or "rejected".' });
         }
 
-        if (withdrawalRequest.status !== 'pending') {
-            return res.status(400).json({ message: 'This withdrawal request has already been processed.' });
+        // Find payment request
+        const paymentRequest = await PaymentRequest.findById(req.params.id).populate('user', 'email username walletBalance');
+        if (!paymentRequest) {
+            return res.status(404).json({ success: false, message: 'Payment request not found' });
         }
 
-        // Refund amount back to user's wallet
-        const user = await User.findById(withdrawalRequest.user._id);
-        console.log("users is ", user);
-        user.walletBalance += withdrawalRequest.amount;
-        await user.save();
+        // Prevent duplicate approval/rejection
+        if (paymentRequest.status === 'approved' || paymentRequest.status === 'rejected') {
+            return res.status(400).json({ success: false, message: `This request is already ${paymentRequest.status}` });
+        }
 
-        // Update status to 'rejected'
-        withdrawalRequest.status = 'rejected';
-        withdrawalRequest.rejectionReason = reason || 'Not specified';
-        await withdrawalRequest.save();
+        const user = paymentRequest.user;
 
-        // Send email notification to the user
+        // If rejected, ensure a reason is provided
+        if (status === 'rejected' && !adminNotes) {
+            return res.status(400).json({ success: false, message: 'Rejection reason is required.' });
+        }
+
+        // If approved, add the amount to the user's wallet
+        if (status === 'approved') {
+            user.walletBalance += paymentRequest.amount;
+            await user.save();
+        }
+
+        // Update payment request status
+        paymentRequest.status = status;
+        paymentRequest.adminNotes = adminNotes || '';
+        paymentRequest.adminId = req.user._id;
+        await paymentRequest.save();
+
+        // Send email notification
         const mailOptions = {
             from: process.env.EMAIL_USER,
-            to: withdrawalRequest.user.email,
-            subject: 'Withdrawal Request Rejected',
+            to: user.email,
+            subject: `Payment Request ${status === 'approved' ? 'Approved' : 'Rejected'}`,
             html: `
-                <h2>Withdrawal Request Rejected</h2>
-                <p>Hello ${withdrawalRequest.user.username},</p>
-                <p>Unfortunately, your withdrawal request has been rejected.</p>
+                <h2>Payment Request ${status === 'approved' ? 'Approved' : 'Rejected'}</h2>
+                <p>Dear ${user.username},</p>
+                <p>Your payment request has been <strong>${status}</strong>.</p>
                 <ul>
-                    <li><b>Amount:</b> $${withdrawalRequest.amount}</li>
-                    <li><b>Bank Name:</b> ${withdrawalRequest.bankName}</li>
-                    <li><b>Transaction ID:</b> ${withdrawalRequest.transactionId}</li>
-                    <li><b>Status:</b> Rejected</li>
-                    <li><b>Reason:</b> ${reason || 'Not specified'}</li>
+                    <li><strong>Transaction ID:</strong> ${paymentRequest.transactionId}</li>
+                    <li><strong>Amount:</strong> ₹${paymentRequest.amount}</li>
+                    <li><strong>Bank Name:</strong> ${paymentRequest.bankName}</li>
+                    ${status === 'rejected' ? `<li><strong>Rejection Reason:</strong> ${adminNotes}</li>` : ''}
                 </ul>
-                <p>The requested amount has been refunded to your wallet.</p>
-                <p>If you have any questions, please contact support.</p>
+                <p>${status === 'approved' ? 'Your wallet has been credited successfully.' : 'Please review the reason and try again.'}</p>
             `
         };
 
-        transporter.sendMail(mailOptions, (error, info) => {
-            if (error) {
-                console.error('Email sending error:', error);
-            } else {
-                console.log('Rejection email sent:', info.response);
-            }
+        await transporter.sendMail(mailOptions);
+
+        res.status(200).json({
+            success: true,
+            message: `Payment request ${status} successfully.`,
+            data: paymentRequest
         });
 
-        res.status(200).json({ message: 'Withdrawal request rejected successfully and amount refunded.' });
-
     } catch (error) {
-        console.error('Error rejecting withdrawal:', error);
-        res.status(500).json({ message: 'Internal server error' });
+        console.error('Error updating payment request:', error);
+        res.status(500).json({ success: false, message: 'Error updating payment request', error: error.message });
+    }
+});
+
+// my final 
+
+router.put('/admin/approve-withdraws/:id', protect, adminOnly, async (req, res) => {
+    try {
+        const { status, adminNotes } = req.body;
+
+        // Validate status
+        if (!['approved', 'rejected'].includes(status)) {
+            return res.status(400).json({ success: false, message: 'Invalid status. Use "approved" or "rejected".' });
+        }
+
+        // Find withdrawal request
+        const { id } = req.params;
+        const withdrawalRequest = await PaymentRequest.findOne({ transactionId: id }).populate('user', 'email username walletBalance');
+        if (!withdrawalRequest) {
+            return res.status(404).json({ success: false, message: 'Withdrawal request not found' });
+        }
+
+        // Prevent duplicate approval/rejection
+        if (withdrawalRequest.status !== 'pending') {
+            return res.status(400).json({ success: false, message: `This request is already ${withdrawalRequest.status}` });
+        }
+
+        const user = withdrawalRequest.user;
+
+        // If rejected, ensure a reason is provided
+        if (status === 'rejected' && !adminNotes) {
+            return res.status(400).json({ success: false, message: 'Rejection reason is required.' });
+        }
+
+        // If approved, deduct the amount from the user's wallet
+        if (status === 'approved') {
+            if (user.walletBalance < withdrawalRequest.amount) {
+                return res.status(400).json({ success: false, message: 'Insufficient balance in user account.' });
+            }
+            user.walletBalance -= withdrawalRequest.amount;
+            await user.save();
+        }
+
+        // Update withdrawal request status
+        withdrawalRequest.status = status;
+        withdrawalRequest.adminNotes = adminNotes || '';
+        withdrawalRequest.adminId = req.user._id;
+        await withdrawalRequest.save();
+
+        // Send email notification
+        const mailOptions = {
+            from: process.env.EMAIL_USER,
+            to: user.email,
+            subject: `Withdrawal Request ${status === 'approved' ? 'Approved' : 'Rejected'}`,
+            html: `
+                <h2>Withdrawal Request ${status === 'approved' ? 'Approved' : 'Rejected'}</h2>
+                <p>Dear ${user.username},</p>
+                <p>Your withdrawal request has been <strong>${status}</strong>.</p>
+                <ul>
+                    <li><strong>Transaction ID:</strong> ${withdrawalRequest.transactionId}</li>
+                    <li><strong>Amount:</strong> ₹${withdrawalRequest.amount}</li>
+                    <li><strong>Bank Name:</strong> ${withdrawalRequest.bankName}</li>
+                    ${status === 'rejected' ? `<li><strong>Rejection Reason:</strong> ${adminNotes}</li>` : ''}
+                </ul>
+                <p>${status === 'approved' ? 'The amount has been deducted from your wallet and will be processed soon.' : 'Please review the reason and try again.'}</p>
+            `
+        };
+
+        await transporter.sendMail(mailOptions);
+
+        res.status(200).json({
+            success: true,
+            message: `Withdrawal request ${status} successfully.`,
+            data: withdrawalRequest
+        });
+    } catch (error) {
+        console.error('Error updating withdrawal request:', error);
+        res.status(500).json({ success: false, message: 'Error updating withdrawal request', error: error.message });
     }
 });
 

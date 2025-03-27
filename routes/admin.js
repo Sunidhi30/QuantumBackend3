@@ -346,10 +346,10 @@ router.post('/plans', protect, adminOnly, async (req, res) => {
         }
 
         // Validate category
-        const validCategories = ['low_risk', 'tax_saving', 'AI_funds','sip', 'high_yield', 'blockchain_funds'];
-        if (!validCategories.includes(category)) {
-            return res.status(400).json({ message: "Invalid category" });
-        }
+        // const validCategories = ['low_risk', 'tax_saving', 'AI_funds','sip', 'high_yield', 'blockchain_funds'];
+        // if (!validCategories.includes(category)) {
+        //     return res.status(400).json({ message: "Invalid category" });
+        // }
 
         // Ensure dealHighlights is properly structured
         const highlights = dealHighlights || {

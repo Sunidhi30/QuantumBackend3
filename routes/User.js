@@ -123,11 +123,26 @@ router.put('/update-profile', protect, [
     }
   });
   //plans by cateogry : high_yeild,sip 
+// router.get('/plans/category/:category', async (req, res) => {
+//     try {
+//         const category = req.params.category.toLowerCase(); // ✅ Convert to lowercase
+
+//         const plans = await Plan.find({ category });
+
+//         if (plans.length === 0) {
+//             return res.status(404).json({ success: false, msg: 'No plans found for this category' });
+//         }
+
+//         res.json({ success: true, msg: 'Plans retrieved successfully', plans });
+
+//     } catch (error) {
+//         res.status(500).json({ success: false, error: error.message });
+//     }
+// });
 router.get('/plans/category/:category', async (req, res) => {
     try {
-        const category = req.params.category.toLowerCase(); // ✅ Convert to lowercase
-
-        const plans = await Plan.find({ category });
+        const category = req.params.category;
+        const plans = await Plan.find({ category: new RegExp(`^${category}$`, 'i') });
 
         if (plans.length === 0) {
             return res.status(404).json({ success: false, msg: 'No plans found for this category' });
@@ -139,6 +154,7 @@ router.get('/plans/category/:category', async (req, res) => {
         res.status(500).json({ success: false, error: error.message });
     }
 });
+
 router.get('/plans/type/:type', async (req, res) => {
     try {
         const { type } = req.params;

@@ -346,7 +346,7 @@ router.post('/plans', protect, adminOnly, async (req, res) => {
         }
 
         // Validate category
-        const validCategories = ['low_risk', 'tax_saving', 'sip', 'high_yield', 'blockchain_funds'];
+        const validCategories = ['low_risk', 'tax_saving', 'AI_funds','sip', 'high_yield', 'blockchain_funds'];
         if (!validCategories.includes(category)) {
             return res.status(400).json({ message: "Invalid category" });
         }
@@ -1027,4 +1027,5 @@ router.put('/admin/approve-withdraws/:id', protect, adminOnly, async (req, res) 
 
   
 module.exports = router;
-// admin token 
+// admin token : 
+// eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZG1pbklkIjoiaGFyZGNvZGVkX2FkbWluX2lkIiwicm9sZSI6ImFkbWluIiwiZW1haWwiOiJzdW5pZGhpQGdtYWlsLmNvbSIsImlhdCI6MTc0MzA3NjYzNCwiZXhwIjoxNzQzMTYzMDM0fQ.N7FO_29SMbQgdSU7Ac9VukR6p5tTT9fGPAjLQM9ooq4

@@ -175,10 +175,10 @@ router.post('/login', [
           $or: [{ email: email }, { mobileNumber: mobileNumber }]
       });
 
-      if (!user) return res.status(400).json({ msg: 'User not found. Please register first.' });
+      if (!user)       return res.status(400).json({ success: false, msg: 'User not found. Please register first.' });
 
-      // Generate OTP
-      // ok 
+      
+      
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
       OTPStore.set(user.email, otp); // Store OTP temporarily
 
@@ -190,10 +190,12 @@ router.post('/login', [
           text: `Your OTP code is ${otp}. It will expire in 5 minutes.`
       });
 
-      res.json({ msg: 'OTP sent to email. Please verify.' });
-  } catch (err) {
+      return res.json({ success: true, msg: 'OTP sent to email. Please verify.', email: user.email });
+    } catch (err) {
       console.error(err);
-      res.status(500).json({ msg: 'Server error' });
+      // res.status(500).json({ msg: 'Server error' });
+      return res.status(500).json({ success: false, msg: 'Server error' });
+
   }
 });
 

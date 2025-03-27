@@ -504,7 +504,7 @@ router.post("/investments/create", protect, async (req, res) => {
         user.totalInvestment += amount;
         await user.save();
 
-        res.status(201).json({ success: true, message: "Investment successful!", investment: newInvestment });
+        res.status(200).json({ success: true, message: "Investment successful!", investment: newInvestment });
 
     } catch (error) {
         console.error("Error in investment:", error);
@@ -1016,7 +1016,7 @@ router.post('/request', protect, async (req, res) => {
   
       await transporter.sendMail(mailOptions);
   
-      res.status(201).json({
+      res.status(200).json({
         success: true,
         message: 'Payment request submitted successfully. Email confirmation sent.',
         data: paymentRequest
@@ -1283,3 +1283,7 @@ router.post('/sell', async (req, res) => {
 module.exports = router;
 //67e02ee2abbc823b4505e9a7
 //sunidhiratra21@gmail.com:67e01a39035bcb0216d1d471
+
+
+
+// plan id : 67e3bea9c0126dbbfb7b2de9

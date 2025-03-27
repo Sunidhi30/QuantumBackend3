@@ -19,6 +19,7 @@ const FAQ = require("../models/FAQ"); // Import the FAQ model
 const Reward = require('../models/Rewards');
 const PaymentRequest = require('../models/Payments');
 const { body, validationResult } = require('express-validator');
+const upload = require('../utils/multer'); // Import the multer middleware
 
 dotenv.config();
 const router = express.Router();
@@ -268,6 +269,7 @@ router.put('/kyc-approve/:userId', protect, adminOnly, async (req, res) => {
 //         res.status(500).json({ error: error.message });
 //     }
 // });
+
 // router.post('/plans', protect, adminOnly, async (req, res) => {
 //     try {
 //         const { 
@@ -386,7 +388,6 @@ router.post('/plans', protect, adminOnly, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-
 
 router.get('/plans', protect, adminOnly, async (req, res) => {
     try {

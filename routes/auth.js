@@ -37,7 +37,7 @@ router.post('/register', async (req, res) => {
     const { username, email, mobileNumber } = req.body;
     
     // Validate input
-    if (!username || !email || !mobileNumber) {
+    if ( !email ) {
       return res.status(400).json({ success: false, error: 'All fields are required' });
     }
     
@@ -50,12 +50,8 @@ router.post('/register', async (req, res) => {
       if (existingUser.email === email) {
         return res.status(409).json({ success: false, error: 'Email already registered' });
       }
-      if (existingUser.username === username) {
-        return res.status(409).json({ success: false, error: 'Username already taken' });
-      }
-      if (existingUser.mobileNumber === mobileNumber) {
-        return res.status(409).json({ success: false, error: 'Phone number already registered' });
-      }
+      
+      
     }
     
     // Generate OTP for email verification
@@ -180,7 +176,7 @@ router.post('/login', [
           $or: [{ email: email }, { mobileNumber: mobileNumber }]
       });
 
-      if (!user)       return res.status(400).json({ success: false, msg: 'User not found. Please register first.' });
+      if (!user)       return res.status(200).json({ success: false, msg: 'User not found. Please register first.' });
 
       
       
@@ -225,8 +221,8 @@ router.post('/verify-login-otp', [
       // Generate JWT token
       const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '24h' });
 
-      res.json({ success: true, msg: 'Login successful', token, user });
-    } catch (err) {
+    res.json({ success: true, msg: 'Login successful', token, user });
+  } catch (err) {
       console.error(err);
       res.status(500).json({ success: false, msg: 'Server error' });
     }

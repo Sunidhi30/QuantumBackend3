@@ -3,16 +3,12 @@ const bcrypt = require('bcryptjs');
 
 
 const userSchema = new mongoose.Schema({
-  username: {
-    type: String,
-    required: false,
-    trim: true
-  },
+
   mobileNumber: {
     type: String,
-    required: false,
-  
-
+    unique: true,
+    sparse: true,  // Allows for null values while keeping uniqueness constraint
+    trim: true
   },
   email: {
     type: String,
@@ -52,7 +48,7 @@ const userSchema = new mongoose.Schema({
   //   addressProof: String,
   //   selfie: String
   // },
-  kycDocuments: {
+  ycDocuments: {
     idProof: String, // Cloudinary URL
     panCard: String, // Cloudinary URL (Only for Indian users)
     addressProof: String, // Cloudinary URL

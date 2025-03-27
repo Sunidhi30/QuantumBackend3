@@ -200,7 +200,7 @@ router.get("/plans/deal-highlights", protect, async (req, res) => {
     }
 });
 // get details of the plan by its id 
-router.get('/plans/:id', protect, async (req, res) => {
+router.get('/plans/:id', async (req, res) => {
     try {
         const plan = await Plan.findById(req.params.id);
         if (!plan) {

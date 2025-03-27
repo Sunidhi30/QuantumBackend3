@@ -3,7 +3,7 @@ const app = express();
 const db = require('./utils/db')
 const userRoutes = require("./routes/users")
 const {configureGoogleAuth} = require('./utils/googleAuthStrategy');
-
+const cors = require("cors");
 const authRoutes= require("./routes/auth")
 const adminRoutes= require("./routes/admin")
 const Users= require("./routes/User")
@@ -18,7 +18,7 @@ app.use(express.json());
 
 require('dotenv').config()
 db();
-
+app.use(cors());
 const PORT = process.env.PORT || 9000;
 app.get("/", (req, res) => {
     res.sendFile(__dirname + "/testing.html");

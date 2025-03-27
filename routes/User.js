@@ -64,7 +64,7 @@ router.put('/update-profile', protect, [
   }
 });
 //All the invested plans 
-router.get('/plans', protect,async (req, res) => {
+router.get('/plans', async (req, res) => {
     try {
         let query = {};
 
@@ -123,9 +123,25 @@ router.put('/update-profile', protect, [
     }
   });
   //plans by cateogry : high_yeild,sip 
-router.get('/plans/category/:category', protect, async (req, res) => {
+router.get('/plans/category/:category', async (req, res) => {
     try {
         const category = req.params.category.toLowerCase(); // ✅ Convert to lowercase
+
+        const plans = await Plan.find({ category });
+
+        if (plans.length === 0) {
+            return res.status(404).json({ msg: 'No plans found for this category' });
+        }
+
+        res.json({ success: true, plans });
+
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+router.get('/plans/type/:category', async (req, res) => {
+    try {
+        const category = req.params.type.toLowerCase(); // ✅ Convert to lowercase
 
         const plans = await Plan.find({ category });
 

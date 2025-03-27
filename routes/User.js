@@ -130,13 +130,13 @@ router.get('/plans/category/:category', async (req, res) => {
         const plans = await Plan.find({ category });
 
         if (plans.length === 0) {
-            return res.status(404).json({ msg: 'No plans found for this category' });
+            return res.status(404).json({ success: false, msg: 'No plans found for this category' });
         }
 
-        res.json({ success: true, plans });
+        res.json({ success: true, msg: 'Plans retrieved successfully', plans });
 
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ success: false, error: error.message });
     }
 });
 router.get('/plans/type/:type', async (req, res) => {
@@ -154,10 +154,10 @@ router.get('/plans/type/:type', async (req, res) => {
             return res.status(404).json({ success: false, msg: 'No plans found for this type' });
         }
 
-        res.json({ success: true, plans });
+        res.json({ success: true, msg: 'Plans retrieved successfully', plans });
 
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        res.status(500).json({ success: false, msg: 'Server error', error: error.message });
     }
 });
 
@@ -1032,11 +1032,11 @@ router.post('/withdraw', protect, [
     try {
         const user = await User.findById(req.user.id);
         if (!user) {
-            return res.status(404).json({ message: 'User not found' });
+            return res.status(404).json({ success : false,  message: 'User not found' });
         }
 
         if (user.walletBalance < req.body.amount) {
-            return res.status(400).json({ message: 'Insufficient balance' });
+            return res.status(400).json({ success : false ,  message: 'Insufficient balance' });
         }
       const transactionId = uuidv4();
 
@@ -1068,9 +1068,9 @@ router.post('/withdraw', protect, [
             }
         });
 
-        res.status(201).json({ message: 'Withdrawal request submitted successfully', request: withdrawalRequest });
+        res.status(201).json({success : true , message: 'Withdrawal request submitted successfully', request: withdrawalRequest });
     } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
+        res.status(500).json({ success : false, message: 'Server error', error: error.message });
     }
 });
 

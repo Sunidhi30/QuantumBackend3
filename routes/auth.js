@@ -14,6 +14,7 @@ env = require('dotenv').config();
 const router = express.Router();
 const OTPStore = new Map(); // Temporary store for OTPs
 const passport = require("../utils/googleauth");
+const { trusted } = require('mongoose');
 // Email transport setup
 const transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -37,7 +38,7 @@ router.post('/register', async (req, res) => {
     
     // Validate input
     if (!username || !email || !mobileNumber) {
-      return res.status(400).json({ error: 'All fields are required' });
+      return res.status(400).json({ success: false, error: 'All fields are required' });
     }
     
     // Check if user already exists
@@ -47,13 +48,13 @@ router.post('/register', async (req, res) => {
     
     if (existingUser) {
       if (existingUser.email === email) {
-        return res.status(409).json({ error: 'Email already registered' });
+        return res.status(409).json({ success: false, error: 'Email already registered' });
       }
       if (existingUser.username === username) {
-        return res.status(409).json({ error: 'Username already taken' });
+        return res.status(409).json({ success: false, error: 'Username already taken' });
       }
       if (existingUser.mobileNumber === mobileNumber) {
-        return res.status(409).json({ error: 'Phone number already registered' });
+        return res.status(409).json({ success: false, error: 'Phone number already registered' });
       }
     }
     
@@ -86,13 +87,15 @@ router.post('/register', async (req, res) => {
     sessions.set(sessionId, { userId: newUser._id });
     
     res.status(201).json({ 
+      success: true,
       message: 'User created. Please verify your email.',
       sessionId,
+      
       nextStep: 'email-verification'
     });
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ success: false, error: 'Server error' });
   }
 });
 
@@ -125,28 +128,29 @@ router.post('/verify-otp', async (req, res) => {
     const { otp, sessionId } = req.body;
     
     if (!otp || !sessionId) {
-      return res.status(400).json({ error: 'OTP and session ID required' });
+      return res.status(400).json({ success: false, error: 'OTP and session ID required' });
     }
     
     // Validate session
     const session = sessions.get(sessionId);
     if (!session) {
-      return res.status(401).json({ error: 'Invalid or expired session' });
+      return res.status(401).json({ success: false, error: 'Invalid or expired session' });
     }
     
     // Get user
     const user = await User.findById(session.userId);
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ success: false, error: 'User not found' });
     }
     
     // Check if OTP is correct and not expired
     if (user.emailOtp !== otp) {
-      return res.status(400).json({ error: 'Invalid OTP' });
+      return res.status(400).json({ success: false, error: 'Invalid OTP' });
+
     }
     
     if (!user.emailOtpExpiry || new Date() > user.emailOtpExpiry) {
-      return res.status(400).json({ error: 'OTP expired' });
+      return res.status(400).json({ success: false, error: 'OTP expired' });
     }
     
     // Mark email as verified
@@ -155,12 +159,13 @@ router.post('/verify-otp', async (req, res) => {
     await user.save();
     
     res.json({ 
+      success: true,
       message: 'Email verified successfully. You can now proceed with the next step.',
       nextStep: 'complete-registration' 
     });
   } catch (error) {
     console.error('Email verification error:', error);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ success: false, error: 'Server error' });
   }
 });
 
@@ -207,23 +212,24 @@ router.post('/verify-login-otp', [
   const { email, otp } = req.body;
 
   if (!OTPStore.has(email) || OTPStore.get(email) !== otp) {
-      return res.status(400).json({ msg: 'Invalid or expired OTP' });
+    return res.status(400).json({ success: false, msg: 'Invalid or expired OTP' });
   }
 
   OTPStore.delete(email); // Remove OTP after verification
 
   try {
       let user = await User.findOne({ email });
-      if (!user) return res.status(400).json({ msg: 'User not found.' });
+      if (!user)       return res.status(400).json({ success: false, msg: 'User not found.' });
+
 
       // Generate JWT token
       const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '24h' });
 
-      res.json({ msg: 'Login successful', token, user });
-  } catch (err) {
+      res.json({ success: true, msg: 'Login successful', token, user });
+    } catch (err) {
       console.error(err);
-      res.status(500).json({ msg: 'Server error' });
-  }
+      res.status(500).json({ success: false, msg: 'Server error' });
+    }
 });
 
 router.get('/home', async (req, res) => {

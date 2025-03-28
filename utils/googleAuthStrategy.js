@@ -29,7 +29,8 @@ passport.use(new GoogleStrategy({
           email: profile.emails[0].value,
           username: profile.displayName,
           // Add any additional fields you want to store
-          authMethod: 'google'
+          authMethod: 'google',
+          isEmailVerified:true
         });
 
         await user.save();
@@ -80,7 +81,8 @@ module.exports = (app) => {
       // Successful authentication, redirect or send token
     //   res.redirect(`/dashboard?token=${req.user.token}`);
       // Alternatively, you could send JSON response
-      res.json({ token: req.user.token });
+      // res.json({ token: req.user.token });
+      res.json({ success: true, msg: 'Login successful',token : req.user.token , user : req.user });
     }
   );
 

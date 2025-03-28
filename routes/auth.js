@@ -14,7 +14,6 @@ env = require('dotenv').config();
 
 const router = express.Router();
 const OTPStore = new Map(); // Temporary store for OTPs
-const passport = require("../utils/googleauth");
 const { trusted } = require('mongoose');
 // Email transport setup
 const transporter = nodemailer.createTransport({
@@ -72,7 +71,11 @@ router.post('/register', async (req, res) => {
       phonePinExpiry: mobileNumber ? otpExpiry : undefined
     });
 
-    await newUser.save();
+    // await newUser.save();
+
+    const sessionId = generateSessionId();
+    sessions.set(sessionId, { user : newUser });
+
     console.log(newUser);
 
     // Send OTP to email if provided
@@ -86,8 +89,8 @@ router.post('/register', async (req, res) => {
       });
     }
     
-    const sessionId = generateSessionId();
-    sessions.set(sessionId, { userId: newUser._id });
+    // const sessionId = generateSessionId();
+    // sessions.set(sessionId, { userId: newUser._id });
 
     // Here you would integrate an SMS API to send the OTP to mobileNumber if provided
     if (mobileNumber) {
@@ -125,10 +128,13 @@ router.post('/verify-otp', async (req, res) => {
     }
     
     // Get user
-    const user = await User.findById(session.userId);
+    const user =  session.user;
+  
+    console.log(user);
     if (!user) {
       return res.status(200).json({success : true, error: 'User not found' });
     }
+
     
     // Check if OTP is correct and not expired
     if (user.emailOtp !== otp) {
@@ -143,8 +149,10 @@ router.post('/verify-otp', async (req, res) => {
     user.isEmailVerified = true;
     
     await user.save();
+    //done 
     
     res.json({ 
+      success: true,
       message: 'Email verified successfully. You can now proceed with the next step.',
       nextStep: 'complete-registration' 
     });
@@ -153,30 +161,31 @@ router.post('/verify-otp', async (req, res) => {
     res.status(500).json({ success : false, error: 'Server error' });
   }
 });
+// mongodb nni local chlara tha 
 
-router.get("/google",(req,res)=>{
-  passport.authenticate("google", { scope: ["profile", "email"] })
-})
-// fr toh google pr bhi rn ahoga gogole cloud console pr 
-router.get(
-  "/google/callback",
-  passport.authenticate("google", { failureRedirect: "/",    session: false // Disable session if using JWT
-  }),
-  (req, res) => {
-    const user = req.user;
+// router.get("/google",(req,res)=>{
+//   passport.authenticate("google", { scope: ["profile", "email"] })
+// })
+// // fr toh google pr bhi rn ahoga gogole cloud console pr 
+// router.get(
+//   "/google/callback",
+//   passport.authenticate("google", { failureRedirect: "/",    session: false // Disable session if using JWT
+//   }),
+//   (req, res) => {
+//     const user = req.user;
 
-    // Generate JWT token for authenticated user
-    const token = jwt.sign(
-      { id: user.id, name: user.displayName, email: user.emails[0].value },
-      process.env.JWT_SECRET,
-      { expiresIn: "12h" }
-    );
+//     // Generate JWT token for authenticated user
+//     const token = jwt.sign(
+//       { id: user.id, name: user.displayName, email: user.emails[0].value },
+//       process.env.JWT_SECRET,
+//       { expiresIn: "12h" }
+//     );
 
-    // Send token to the client
-    res.json({ token });
+//     // Send token to the client
+//     res.json({ success: true, msg: 'Login successful', token, user });
    
-  }
-);
+//   }
+// );
 
 router.post('/verify-otp', async (req, res) => {
   try {
@@ -228,11 +237,12 @@ router.post('/verify-otp', async (req, res) => {
 router.post('/login', [
   // check('login', 'Email or Mobile Number is required').not().isEmpty()
 ], async (req, res) => {
-  const { email,mobileNumber } = req.body;
+  const { email} = req.body;
   console.log("Searching for user with:", email);
+  // yeh hi email : undefined ara h 
   try {
       let user = await User.findOne({
-          $or: [{ email: email }, { mobileNumber: mobileNumber }]
+            email: email 
       });
 
       if (!user)       return res.status(200).json({ success: false, msg: 'User not found. Please register first.' });
@@ -240,12 +250,12 @@ router.post('/login', [
       
       
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
-      OTPStore.set(user.email, otp); // Store OTP temporarily
+      OTPStore.set(user.email, otp); // Store OTP temporarily noo
 
       // Send OTP to email
       await transporter.sendMail({
           from: process.env.EMAIL_USER,
-          to: user.email,
+          to: email,
           subject: 'Login OTP Verification',
           text: `Your OTP code is ${otp}. It will expire in 5 minutes.`
       });
@@ -261,7 +271,7 @@ router.post('/login', [
 
 // 4️⃣ **Verify OTP & Login**
 router.post('/verify-login-otp', [
-  check('email', 'Email is required').isEmail(),
+  // check('email', 'Email is required').isEmail(),
   check('otp', 'OTP is required').not().isEmpty()
 ], async (req, res) => {
   const { email, otp } = req.body;

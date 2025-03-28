@@ -127,7 +127,7 @@ router.post('/verify-otp', async (req, res) => {
     // Get user
     const user = await User.findById(session.userId);
     if (!user) {
-      return res.status(200).json({status : true, error: 'User not found' });
+      return res.status(200).json({success : true, error: 'User not found' });
     }
     
     // Check if OTP is correct and not expired

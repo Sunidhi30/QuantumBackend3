@@ -85,13 +85,14 @@ module.exports = (app) => {
       res.json({ success: true, msg: 'Login successful',token : req.user.token , user : req.user });
     }
   );
-
+// okay okay but sir environment varibale change kr h vo toh krne pdege hi 
   // Link Google account to existing user
   app.get('/connect/google',
     passport.authorize('google', { 
       scope: ['profile', 'email'] 
     })
   );
+  // han haiii 
 
   // Google account linking callback
   app.get('/connect/google/callback',

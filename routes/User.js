@@ -64,6 +64,7 @@ router.put('/update-profile', protect, [
   }
 });
 //All the invested plans 
+
 router.get('/plans', async (req, res) => {
     try {
         let query = {};

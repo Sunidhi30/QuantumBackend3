@@ -2,7 +2,7 @@
 
 const express = require('express');
 const nodemailer = require("nodemailer");
-
+const { uploadToCloudinary } = require("../utils/cloudinary");
 const jwt = require('jsonwebtoken');
 const dotenv = require('dotenv');
 const mongoose = require("mongoose");
@@ -20,8 +20,9 @@ const Reward = require('../models/Rewards');
 const PaymentRequest = require('../models/Payments');
 const { body, validationResult } = require('express-validator');
 const multer = require("multer");
+const storage = multer.memoryStorage();
 
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({ storage: storage });
 
 dotenv.config();
 const router = express.Router();
@@ -224,6 +225,7 @@ router.put('/kyc-approve/:userId', protect, adminOnly, async (req, res) => {
 });
 
 // ✅ Manage Investment Plans
+// yes
 
 // ✅ Add New Investment Plan
 // router.post('/plans', protect, adminOnly, async (req, res) => {
@@ -397,7 +399,7 @@ router.post(
     "/plans",
     protect,
     adminOnly,
-    upload.fields([{ name: "planImages", maxCount: 5 }]), // Allow up to 5 images
+    upload.single("plansImage"), // Allow up to 5 images
     async (req, res) => {
       try {
         const {
@@ -420,16 +422,14 @@ router.post(
         if (!name || !type || !category || !description || !apy || !tenureOptions || !minInvestment || !maxInvestment || !dividend || !riskLevel) {
           return res.status(400).json({ message: "Missing required fields" });
         }
-  
+      console.log(req.file);
         // Process image uploads
-        let planImages = [];
-        if (req.files.planImages) {
-          planImages = await Promise.all(
-            req.files.planImages.map(async (file) => {
-              const base64 = `data:${file.mimetype};base64,${file.buffer.toString("base64")}`;
-              return await uploadToCloudinary(base64, "plan_images", file.mimetype);
-            })
-          );
+        // let planImages = [];
+        // abh smjh aya let or var ka diff 
+        if (req.file) {
+              const base64 = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
+              var plansImageUrl = await uploadToCloudinary(base64, "plan_images", req.file.mimetype);
+          console.log(plansImageUrl)
         }
   
         const highlights = dealHighlights || {
@@ -440,6 +440,7 @@ router.post(
           reward: reward || "No reward",
           dividend: dividend || 0,
         };
+     
   
         const newPlan = new Plan({
           name,
@@ -456,7 +457,7 @@ router.post(
           paymentOptions,
           riskLevel,
           dealHighlights: highlights,
-          planImages, // Store image URLs in the database
+          planImages: plansImageUrl, // Store image URLs in the database
         });
   
         await newPlan.save();

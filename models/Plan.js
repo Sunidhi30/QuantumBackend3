@@ -31,7 +31,7 @@ const planSchema = new mongoose.Schema({
     enum: ['3 months', '6 months', '1 year', '5 years', '12 months'],
     required: true
   },
-  image: {
+  planImages: {
     type: String, // Store the image URL
     required: true 
   },

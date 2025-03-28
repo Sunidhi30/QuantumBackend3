@@ -1,7 +1,7 @@
 const express = require('express');
 const app = express();
 const db = require('./utils/db')
-const userRoutes = require("./routes/users")
+
 const {configureGoogleAuth} = require('./utils/googleAuthStrategy');
 const cors = require("cors");
 const authRoutes= require("./routes/auth")

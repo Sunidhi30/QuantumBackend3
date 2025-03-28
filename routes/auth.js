@@ -161,31 +161,7 @@ router.post('/verify-otp', async (req, res) => {
     res.status(500).json({ success : false, error: 'Server error' });
   }
 });
-// mongodb nni local chlara tha 
 
-// router.get("/google",(req,res)=>{
-//   passport.authenticate("google", { scope: ["profile", "email"] })
-// })
-// // fr toh google pr bhi rn ahoga gogole cloud console pr 
-// router.get(
-//   "/google/callback",
-//   passport.authenticate("google", { failureRedirect: "/",    session: false // Disable session if using JWT
-//   }),
-//   (req, res) => {
-//     const user = req.user;
-
-//     // Generate JWT token for authenticated user
-//     const token = jwt.sign(
-//       { id: user.id, name: user.displayName, email: user.emails[0].value },
-//       process.env.JWT_SECRET,
-//       { expiresIn: "12h" }
-//     );
-
-//     // Send token to the client
-//     res.json({ success: true, msg: 'Login successful', token, user });
-   
-//   }
-// );
 
 router.post('/verify-otp', async (req, res) => {
   try {

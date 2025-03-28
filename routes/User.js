@@ -178,25 +178,7 @@ router.get('/plans/type/:type', async (req, res) => {
     }
 });
 
-// deal highlights 
-// router.get("/plans/deal-highlights", protect, async (req, res) => {
-//     try {
-//       // Fetch only active plans that have deal highlights
-//       const plans = await Plan.find(
-//         { isActive: true, dealHighlights: { $exists: true } }, 
-//         { name: 1, type: 1, category: 1, dealHighlights: 1 }
-//       );
-  
-//       if (!plans.length) {
-//         return res.status(404).json({ success: false, message: "No plans with deal highlights found." });
-//       }
-  
-//       res.status(200).json({ success: true, plans });
-//     } catch (error) {
-//       console.error("Error fetching deal highlights:", error);
-//       res.status(500).json({ success: false, error: error.message });
-//     }
-//   });
+
 
 router.get("/plans/deal-highlights", protect, async (req, res) => {
     try {
@@ -303,6 +285,7 @@ router.post(
         console.log("Stored KYC Data:", user.kycDocuments);
   
         res.status(200).json({
+         userId : req.user.id,
             success: true,
             message: "KYC submitted successfully. Waiting for admin approval.",
             urls: user.kycDocuments, // Return the image URLs
@@ -340,108 +323,7 @@ router.get('/kyc-documents', protect, async (req, res) => {
         res.status(500).json({ message: "Internal server error" });
     }
 });
-// router.get('/kyc-documents/download', protect, async (req, res) => {
-//     try {
-//         const user = await User.findById(req.user.id);
-//         if (!user) return res.status(404).json({ message: "User not found" });
-//         console.log("users documents"+user.kycDocuments);
-//         console.log("users documents id"+user.kycDocuments.idProof);
-//         console.log("users documents idproof url"+user.kycDocuments.idProof.url);
-
-//         if (!user.kycDocuments || !user.kycDocuments.idProof ) {
-//             return res.status(404).json({ message: "No idproof documents found" });
-//         }
-//         if (!user.kycDocuments || !user.kycDocuments. panCard) {
-//             return res.status(404).json({ message: "No panCard documents found" });
-//         }
-
-//         if (!user.kycDocuments || !user.kycDocuments.addressProof) {
-//             return res.status(404).json({ message: "No addressproof documents found" });
-//         }
-
-//         // Redirect user to the Cloudinary URL
-//         res.redirect(user.kycDocuments.idProof.url);
-
-//     } catch (error) {
-//         console.error("Error fetching KYC documents:", error);
-//         res.status(500).json({ message: "Internal server error" });
-//     }
-// });
-
-
-// investments plans acocrding tot he user 
-// router.post('/invest', protect, async (req, res) => {
-//     try {
-//         const { planId, amount, paymentMethod, paymentDetails } = req.body;
-//         const userId = req.user.id; // Assuming `req.user` contains the authenticated user's details
-
-//         // Validate required fields
-//         if (!planId || !amount || !paymentMethod) {
-//             return res.status(400).json({ message: "Missing required fields" });
-//         }
-
-//         // Check if the plan exists
-//         const plan = await Plan.findById(planId);
-//         if (!plan || !plan.isActive) {
-//             return res.status(404).json({ message: "Plan not found or inactive" });
-//         }
-
-//         // Validate investment amount
-//         if (amount < plan.minInvestment || amount > plan.maxInvestment) {
-//             return res.status(400).json({ message: `Investment amount must be between ${plan.minInvestment} and ${plan.maxInvestment}` });
-//         }
-
-//         // Fetch the user
-//         const user = await User.findById(userId);
-//         if (!user) {
-//             return res.status(404).json({ message: "User not found" });
-//         }
-
-//         // Check if the user has enough wallet balance (optional)
-//         // i will used after I intergrate the payements gateway
-//         // if (user.walletBalance < amount) {
-//         //     return res.status(400).json({ message: "Insufficient wallet balance" });
-//         // }
-
-//         // Calculate maturity date (Assuming the longest tenure is used)
-//         const tenureInMonths = parseInt(plan.tenureOptions[plan.tenureOptions.length - 1]); // Get the last tenure option
-//         const maturityDate = new Date();
-//         maturityDate.setMonth(maturityDate.getMonth() + tenureInMonths);
-
-//         // Calculate maturity amount (Simple calculation: Principal + (APR % over tenure))
-//         const maturityAmount = amount + (amount * (plan.apy / 100));
-
-//         // Create new investment record
-//         const newInvestment = new Investment({
-//             user: userId,
-//             plan: planId,
-//             planName: plan.name,
-//             amount,
-//             apr: plan.apy,
-//             startDate: new Date(),
-//             endDate: maturityDate,
-//             maturityAmount,
-//             paymentMethod,
-//             paymentDetails,
-//             payoutFrequency: plan.paymentOptions[0], // Default to the first payment option
-//             status: "pending"
-//         });
-
-//         await newInvestment.save();
-
-//         // Deduct amount from user's wallet (if applicable)
-//         user.walletBalance -= amount;
-//         user.totalInvestment += amount;
-//         await user.save();
-
-//         res.status(201).json({ success: true, investment: newInvestment });
-
-//     } catch (error) {
-//         console.error("Error in investment:", error);
-//         res.status(500).json({ error: error.message });
-//     }
-// });
-// invest money in the plan 
+// skipped on the postman for now
 router.post("/investments/create", protect, async (req, res) => {
     try {
         const userId = req.user.id;
@@ -780,35 +662,36 @@ router.get('/user-rewards/:userId', async (req, res) => {
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
-router.post('/upload-query', async (req, res) => {
-    try {
-      const { userId, queryText } = req.body;
-  
-      if (!userId || !queryText) {
-        return res.status(400).json({ message: 'User ID and query text are required' });
+router.post('/upload-query', protect , async (req, res) => {
+  try {
+      const { queryText } = req.body;
+
+      if (!req.user) {
+          return res.status(401).json({ message: 'Unauthorized: User not authenticated' });
       }
-  
-      const user = await User.findById(userId);
-      if (!user) {
-        return res.status(404).json({ message: 'User not found' });
+
+      const user = req.user; // Now user should not be null
+
+      if (!queryText) {
+          return res.status(400).json({ message: 'Query text is required' });
       }
-  
+
       const mailOptions = {
-        from: user.email,
-        to: process.env.EMAIL_USER, // Admin's email
-        subject: `New Query from ${user.username}`,
-        text: `User: ${user.username} (${user.email})\nQuery: ${queryText}`
+          from: user.email,
+          to: process.env.EMAIL_USER, // Admin's email
+          subject: `New Query from ${user.email}`,
+          text: `User: ${user.email} (${user.email})\nQuery: ${queryText}`
       };
-  
+
       await transporter.sendMail(mailOptions);
-  
+
       res.status(200).json({ message: 'Query sent successfully' });
-    } catch (error) {
+  } catch (error) {
       console.error('Error sending query email:', error);
       res.status(500).json({ message: 'Internal server error' });
-    }
-  });
-  // users quiz 
+  }
+});
+
   router.get('/quiz', async (req, res) => {
     try {
       const quizzes = await Quiz.find({}, 'question options'); // Do not send correct answers
@@ -838,114 +721,65 @@ router.post('/upload-query', async (req, res) => {
       res.status(500).json({ message: 'Server error', error: error.message });
     }
   });  
-  router.post('/buy', async (req, res) => {
-    try {
-        const { userId, planId, units, paymentMethod } = req.body;
 
-        // Fetch user and plan details
-        const user = await User.findById(userId);
-        const plan = await Plan.findById(planId);
-
-        if (!user || !plan) {
-            return res.status(404).json({ message: 'User or Plan not found' });
-        }
-
-        // Calculate total amount based on units
-        const pricePerUnit = plan.pricePerUnit; // Assume this exists in Plan schema
-        const totalAmount = pricePerUnit * units;
-
-        // Check if user has enough balance
-        if (user.walletBalance < totalAmount) {
-            return res.status(400).json({ message: 'Insufficient wallet balance' });
-        }
-
-        // Calculate maturity amount based on APR
-        const apr = plan.apr;
-        const duration = plan.duration; // Assuming in months
-        const maturityAmount = totalAmount * (1 + (apr / 100) * (duration / 12));
-
-        // Deduct amount from wallet balance
-        user.walletBalance -= totalAmount;
-        user.totalInvestment += totalAmount;
-
-        // Create investment entry
-        const investment = new Investment({
-            user: userId,
-            plan: planId,
-            planName: plan.name,
-            units,
-            pricePerUnit,
-            amount: totalAmount,
-            apr,
-            startDate: new Date(),
-            endDate: new Date(new Date().setMonth(new Date().getMonth() + duration)),
-            maturityAmount,
-            paymentMethod,
-            status: 'active'
-        });
-
-        await investment.save();
-        await user.save();
-
-        res.status(201).json({ message: 'Investment successful', investment });
-
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Server error' });
-    }
-});
-// router.post('/request', protect, async (req, res) => {
+//   router.post('/buy', async (req, res) => {
 //     try {
-//       const { bankName, amount, transactionId } = req.body;
-      
-//       // Validate input
-//       if (!bankName || !amount || !transactionId) {
-//         return res.status(400).json({ 
-//           success: false, 
-//           message: 'Please provide bank name, amount, and transaction ID' 
+//         const { userId, planId, units, paymentMethod } = req.body;
+
+//         // Fetch user and plan details
+//         const user = await User.findById(userId);
+//         const plan = await Plan.findById(planId);
+
+//         if (!user || !plan) {
+//             return res.status(404).json({ message: 'User or Plan not found' });
+//         }
+
+//         // Calculate total amount based on units
+//         const pricePerUnit = plan.pricePerUnit; // Assume this exists in Plan schema
+//         const totalAmount = pricePerUnit * units;
+
+//         // Check if user has enough balance
+//         if (user.walletBalance < totalAmount) {
+//             return res.status(400).json({ message: 'Insufficient wallet balance' });
+//         }
+
+//         // Calculate maturity amount based on APR
+//         const apr = plan.apr;
+//         const duration = plan.duration; // Assuming in months
+//         const maturityAmount = totalAmount * (1 + (apr / 100) * (duration / 12));
+
+//         // Deduct amount from wallet balance
+//         user.walletBalance -= totalAmount;
+//         user.totalInvestment += totalAmount;
+
+//         // Create investment entry
+//         const investment = new Investment({
+//             user: userId,
+//             plan: planId,
+//             planName: plan.name,
+//             units,
+//             pricePerUnit,
+//             amount: totalAmount,
+//             apr,
+//             startDate: new Date(),
+//             endDate: new Date(new Date().setMonth(new Date().getMonth() + duration)),
+//             maturityAmount,
+//             paymentMethod,
+//             status: 'active'
 //         });
-//       }
-  
-//       // Check if amount is positive
-//       if (amount <= 0) {
-//         return res.status(400).json({ 
-//           success: false, 
-//           message: 'Amount must be greater than zero' 
-//         });
-//       }
-  
-//       // Check if transaction ID already exists
-//       const existingRequest = await PaymentRequest.findOne({ transactionId });
-//       if (existingRequest) {
-//         return res.status(400).json({ 
-//           success: false, 
-//           message: 'Transaction ID already submitted' 
-//         });
-//       }
-  
-//       // Create payment request
-//       const paymentRequest = new PaymentRequest({
-//         user: req.user._id,
-//         bankName,
-//         amount,
-//         transactionId
-//       });
-  
-//       await paymentRequest.save();
-  
-//       res.status(201).json({
-//         success: true,
-//         message: 'Payment request submitted successfully',
-//         data: paymentRequest
-//       });
+
+//         await investment.save();
+//         await user.save();
+
+//         res.status(201).json({ message: 'Investment successful', investment });
+
 //     } catch (error) {
-//       res.status(500).json({ 
-//         success: false, 
-//         message: 'Error creating payment request',
-//         error: error.message 
-//       });
+//         console.error(error);
+//         res.status(500).json({ message: 'Server error' });
 //     }
-//   });
+// });
+
+
 // api for request of users to deposti the payement 
 router.post('/request', protect, async (req, res) => {
     try {
@@ -1032,192 +866,151 @@ router.post('/request', protect, async (req, res) => {
       });
     }
   });
-  
-// withdrawls 
-
-router.post('/withdraw', protect, [
-    body('amount').isNumeric().withMessage('Amount must be a number'),
-    body('accountNumber').isString().notEmpty().withMessage('Account number is required'),
-    body('upiId').optional().isString(),
-    body('bankName').isString().notEmpty().withMessage('Bank name is required')
-], async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
-    }
-
+  // payement added to the wallet 
+  router.get('/wallet', protect, async (req, res) => {
     try {
-        const user = await User.findById(req.user.id);
+        const user = await User.findById(req.user._id).select('walletBalance');
         if (!user) {
-            return res.status(404).json({ success : false,  message: 'User not found' });
+            return res.status(404).json({ 
+                success: false, 
+                message: 'User not found' 
+            });
         }
 
-        if (user.walletBalance < req.body.amount) {
-            return res.status(400).json({ success : false ,  message: 'Insufficient balance' });
-        }
-      const transactionId = uuidv4();
-
-        // Create withdrawal request
-        const withdrawalRequest = new PaymentRequest({
-            user: user._id,
-            bankName: req.body.bankName,
-            amount: req.body.amount,
-                   transactionId,
- // Generate unique transaction ID
-            status: 'pending'
+        res.status(200).json({
+            success: true,
+            walletBalance: user.walletBalance || 0
         });
 
-        await withdrawalRequest.save();
-
-        // Send confirmation email to the user
-        const mailOptions = {
-            from: process.env.EMAIL_USER,
-            to: user.email,
-            subject: 'Withdrawal Request Received',
-            text: `Dear ${user.username},\n\nYour withdrawal request of ₹${req.body.amount} has been received.\nWe will process it soon.\n\nBest Regards,\nAdmin`
-        };
-
-        transporter.sendMail(mailOptions, (error, info) => {
-            if (error) {
-                console.error('Email error:', error);
-            } else {
-                console.log('Email sent:', info.response);
-            }
-        });
-
-        res.status(201).json({success : true , message: 'Withdrawal request submitted successfully', request: withdrawalRequest });
     } catch (error) {
-        res.status(500).json({ success : false, message: 'Server error', error: error.message });
+        console.error('Error fetching wallet balance:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error fetching wallet balance',
+            error: error.message 
+        });
     }
 });
 
-// router.post('/withdraw', async (req, res) => {
+// withdrawls 
+
+// router.post('/withdraw', protect, [
+//     body('amount').isNumeric().withMessage('Amount must be a number'),
+//     body('accountNumber').isString().notEmpty().withMessage('Account number is required'),
+//     body('upiId').optional().isString(),
+//     body('bankName').isString().notEmpty().withMessage('Bank name is required')
+// ], async (req, res) => {
+//     const errors = validationResult(req);
+//     if (!errors.isEmpty()) {
+//         return res.status(400).json({ errors: errors.array() });
+//     }
+
 //     try {
-//       const { userId, amount, bankName, accountHolderName, accountNumber, ifscCode, mobileNumber, upiId } = req.body;
-  
-//       // Validate user
-//       const user = await User.findById(userId);
-//       if (!user) {
-//         return res.status(404).json({ message: 'User not found' });
-//       }
-  
-//       // Check if the user is blocked
-//       if (user.isBlocked) {
-//         return res.status(403).json({ message: 'Your account is blocked. You cannot withdraw funds.' });
-//       }
-  
-//       // Validate withdrawal amount
-//       if (amount < 200 || amount > 30000) {
-//         return res.status(400).json({ message: 'Withdrawal amount must be between $200 and $30,000.' });
-//       }
-  
-//       // Check if the user has sufficient balance
-//       if (amount > user.walletBalance) {
-//         return res.status(400).json({ message: 'Insufficient wallet balance.' });
-//       }
-  
-//       // Generate unique transaction ID
-//       const transactionId = uuidv4();
-  
-//       // Create withdrawal request
-//       const withdrawalRequest = new PaymentRequest({
-//         user: userId,
-//         bankName,
-//         amount,
-//         transactionId,
-//         status: 'pending'
-//       });
-  
-//       await withdrawalRequest.save();
-  
-//       // Deduct amount from user's wallet balance
-//       user.walletBalance -= amount;
-//       await user.save();
-  
-//       // Send email notification
-//       const mailOptions = {
-//         from: process.env.EMAIL_USER,
-//         to: user.email,
-//         subject: 'Withdrawal Request Submitted',
-//         html: `
-//           <h2>Withdrawal Request Submitted</h2>
-//           <p>Hello ${user.username},</p>
-//           <p>Your withdrawal request has been submitted successfully. Here are the details:</p>
-//           <ul>
-//             <li><b>Amount:</b> $${amount}</li>
-//             <li><b>Bank Name:</b> ${bankName}</li>
-//             <li><b>Transaction ID:</b> ${transactionId}</li>
-//             <li><b>Status:</b> Pending</li>
-//           </ul>
-//           <p>We will process your request soon. Thank you for using our service.</p>
-//         `
-//       };
-  
-//       transporter.sendMail(mailOptions, (error, info) => {
-//         if (error) {
-//           console.error('Email sending error:', error);
-//         } else {
-//           console.log('Email sent:', info.response);
+//         const user = await User.findById(req.user.id);
+//         if (!user) {
+//             return res.status(404).json({ success : false,  message: 'User not found' });
 //         }
-//       });
-  
-//       res.status(201).json({ message: 'Withdrawal request submitted successfully.', transactionId });
-  
-//     } catch (error) {
-//       console.error('Withdrawal error:', error);
-//       res.status(500).json({ message: 'Internal server error' });
-//     }
-//   });
-// router.post('/withdraw', async (req, res) => {
-//     try {
-//       const { userId, amount, bankName, accountHolderName, accountNumber, ifscCode, mobileNumber, upiId } = req.body;
-  
-//       // Validate the user
-//       const user = await User.findById(userId);
-//       if (!user) {
-//         return res.status(404).json({ message: 'User not found' });
-//       }
-  
-//       // Check if the user is blocked
-//       if (user.isBlocked) {
-//         return res.status(403).json({ message: 'Your account is blocked. You cannot withdraw funds.' });
-//       }
-  
-//       // Validate withdrawal amount
-//       if (amount < 200 || amount > 30000) {
-//         return res.status(400).json({ message: 'Withdrawal amount must be between $200 and $30,000.' });
-//       }
-  
-//       // Check if the user has sufficient balance
-//       if (amount > user.walletBalance) {
-//         return res.status(400).json({ message: 'Insufficient wallet balance.' });
-//       }
-  
-//       // Generate unique transaction ID
+
+//         if (user.walletBalance < req.body.amount) {
+//             return res.status(400).json({ success : false ,  message: 'Insufficient balance' });
+//         }
 //       const transactionId = uuidv4();
-  
-//       // Create a withdrawal request
-//       const withdrawalRequest = new PaymentRequest({
-//         user: userId,
-//         bankName,
-//         amount,
-//         transactionId,
-//         status: 'pending',
-//         proofImage: '', // Can be updated later if needed
-//       });
-  
-//       await withdrawalRequest.save();
-  
-//       // Deduct the amount from the user's wallet balance
-//       user.walletBalance -= amount;
-//       await user.save();
-  
-//       res.status(201).json({ message: 'Withdrawal request submitted successfully.', transactionId });
+
+//         // Create withdrawal request
+//         const withdrawalRequest = new PaymentRequest({
+//             user: user._id,
+//             bankName: req.body.bankName,
+//             amount: req.body.amount,
+//                    transactionId,
+//  // Generate unique transaction ID
+//             status: 'pending'
+//         });
+
+//         await withdrawalRequest.save();
+
+//         // Send confirmation email to the user
+//         const mailOptions = {
+//             from: process.env.EMAIL_USER,
+//             to: user.email,
+//             subject: 'Withdrawal Request Received',
+//             text: `Dear ${user.username},\n\nYour withdrawal request of ₹${req.body.amount} has been received.\nWe will process it soon.\n\nBest Regards,\nAdmin`
+//         };
+
+//         transporter.sendMail(mailOptions, (error, info) => {
+//             if (error) {
+//                 console.error('Email error:', error);
+//             } else {
+//                 console.log('Email sent:', info.response);
+//             }
+//         });
+
+//         res.status(201).json({success : true , message: 'Withdrawal request submitted successfully', request: withdrawalRequest });
 //     } catch (error) {
-//       console.error('Withdrawal error:', error);
-//       res.status(500).json({ message: 'Internal server error' });
+//         res.status(500).json({ success : false, message: 'Server error', error: error.message });
 //     }
-//   });
+// });
+router.post('/withdraw', protect, [
+  body('amount').isNumeric().withMessage('Amount must be a number'),
+  body('accountNumber').isString().notEmpty().withMessage('Account number is required'),
+  body('ifscCode').isString().notEmpty().withMessage('IFSC Code is required'),
+  body('upiId').optional().isString(),
+  body('bankName').isString().notEmpty().withMessage('Bank name is required')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+  }
+
+  try {
+      const user = await User.findById(req.user.id);
+      if (!user) {
+          return res.status(404).json({ success: false, message: 'User not found' });
+      }
+
+      if (user.walletBalance < req.body.amount) {
+          return res.status(400).json({ success: false, message: 'Insufficient balance' });
+      }
+
+      const transactionId = uuidv4(); // Generate a unique transaction ID
+
+      // Create withdrawal request (Pending Approval)
+      const withdrawalRequest = new PaymentRequest({
+          user: user._id,
+          bankName: req.body.bankName,
+          amount: req.body.amount,
+          transactionId,
+          ifscCode: req.body.ifscCode,
+          accountNumber: req.body.accountNumber,
+          upiId: req.body.upiId || '',
+          status: 'pending' // Admin needs to approve it
+      });
+
+      await withdrawalRequest.save();
+
+      // Send confirmation email to the user
+      const mailOptions = {
+          from: process.env.EMAIL_USER,
+          to: user.email,
+          subject: 'Withdrawal Request Received',
+          text: `Dear ${user.username},\n\nYour withdrawal request of ₹${req.body.amount} has been received.\nWe will process it soon.\n\nBest Regards,\nAdmin`
+      };
+
+      transporter.sendMail(mailOptions, (error, info) => {
+          if (error) console.error('Email error:', error);
+      });
+
+      res.status(201).json({
+          success: true,
+          message: 'Withdrawal request submitted successfully',
+          request: withdrawalRequest
+      });
+
+  } catch (error) {
+      res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+});
+
+//
   
   router.get('/transactions/:userId', async (req, res) => {
     try {

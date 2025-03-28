@@ -35,6 +35,11 @@ const paymentRequestSchema = new mongoose.Schema({
   },
   proofImage: {
     type: String // Optional: for payment proof upload
+  },
+  wallet: {
+    type: Number,
+    default: 0,  // Wallet balance starts at 0
+    min: 0
   }
 }, {
   timestamps: true

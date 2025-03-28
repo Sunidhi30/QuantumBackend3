@@ -12,6 +12,12 @@ const investmentSchema = new mongoose.Schema({
     ref: 'Plan',
     required: true
   },
+  units: {
+    type: Number,
+    required: true,
+    min: 1
+  },
+
   planName: {
     type: String,
     required: true

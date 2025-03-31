@@ -161,7 +161,7 @@ router.get('/plans/type/:type', async (req, res) => {
         const { type } = req.params;
 
         // Ensure the provided type matches the enum values
-        if (!['Quantum Wealth Fund', 'Quantum Globe Fund', 'Quantum Blockchain-AI Fund'].includes(type)) {
+        if (!['Quantum_Wealth_Fund', 'Quantum_Globe_Fund', 'Quantum_Blockchain-AI_Fund'].includes(type)) {
             return res.status(400).json({ success: false, msg: 'Invalid plan type' });
         }
 
@@ -1072,6 +1072,84 @@ router.post('/sell', async (req, res) => {
         console.error(error);
         res.status(500).json({ message: 'Server error' });
     }
+});
+router.get('/categories', async (req, res) => {
+  try {
+    const categories = await Plan.distinct('category'); // Get unique category values
+    res.status(200).json({ categories });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching categories', error: error.message });
+  }
+});
+router.post('/sell-investment', protect, async (req, res) => {
+  try {
+    const { investmentId, units } = req.body;
+
+    // Extract userId from the token
+    const userId = req.user.id;
+    console.log("Authenticated User ID:", userId);
+
+    // Find the investment
+    const investment = await Investment.findOne({ _id: investmentId, user: userId });
+
+    if (!investment) {
+      return res.status(404).json({ message: 'Investment not found or does not belong to user' });
+    }
+
+    // Check if the user is trying to sell more units than they own
+    if (units > investment.units) {
+      return res.status(400).json({ message: 'Not enough units to sell' });
+    }
+
+    // Calculate refund amount based on the units sold
+    const perUnitMaturityAmount = investment.maturityAmount / investment.units;
+    const refundAmount = perUnitMaturityAmount * units;
+
+    // Find the user
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    // Update wallet balance
+    user.walletBalance += refundAmount;
+    await user.save();
+
+    // Deduct sold units from investment
+    investment.units -= units;
+    investment.maturityAmount -= refundAmount;
+
+    // If all units are sold, mark investment as 'sold'
+    if (investment.units === 0) {
+      investment.status = 'sold';
+      investment.soldDate = new Date();
+    }
+
+    await investment.save();
+
+    return res.status(200).json({ 
+      message: `Successfully sold ${units} unit(s)`, 
+      refundAmount, 
+      remainingUnits: investment.units,
+      investment 
+    });
+
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+router.get('/support', async (req, res) => {
+  try {
+    const supportDetails = {
+      adminEmail: "sunidhiratra21@gmail.com",
+      experience: "6+ years",
+      totalInvestments: "250+ Cr"
+    };
+
+    return res.status(200).json(supportDetails);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
 });
 
 module.exports = router;

@@ -8,16 +8,21 @@ const planSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['Quantum Wealth Fund', 'Quantum Globe Fund', 'Quantum Blockchain-AI Fund'],
+    enum: ['Quantum_Wealth_Fund', 'Quantum_Globe_Fund', 'Quantum_Blockchain-AI_Fund'],
     required: true
   },
   category: {
     type: String,
-    enum: ['low_risk', 'tax_saving', 'AI_funds', 'high_yield', 'blockchain_funds'],
+    enum: ['low_risk', 'tax_saving', 'AI_funds', 'high_yield', 'blockchain_funds','SIP'],
     required: true
   },
   description: {
     type: String,
+    required: true
+  },
+  Addcategory: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Category',
     required: true
   },
   apy: {

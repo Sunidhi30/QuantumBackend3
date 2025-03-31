@@ -1,7 +1,6 @@
 const express = require('express');
 const app = express();
 const db = require('./utils/db')
-
 const {configureGoogleAuth} = require('./utils/googleAuthStrategy');
 const cors = require("cors");
 const authRoutes= require("./routes/auth")
@@ -10,7 +9,7 @@ const Users= require("./routes/User")
 const session = require('express-session');
 configureGoogleAuth(app);
 
-const walletRoutes=require("./routes/wallet")
+// const walletRoutes=require("./routes/wallet")
 let ejs = require('ejs');
 
 app.use(express.urlencoded({ extended: true }));
@@ -27,7 +26,7 @@ app.get("/", (req, res) => {
 app.use("/api/auth",authRoutes)
 app.use("/api/admin",adminRoutes)
 app.use("/api/users",Users)
-app.use('/api/wallet', walletRoutes);
+// app.use('/api/wallet', walletRoutes);
 app.get('/session', (req, res) => {
     res.json({ sessionId: req.sessionID });
 });
@@ -42,7 +41,7 @@ app.use(
       saveUninitialized: false,
     })
   );
-
+ 
 
 app.listen(PORT,()=>{
    console.log(`Server started at ${PORT}`)

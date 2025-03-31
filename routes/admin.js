@@ -21,6 +21,7 @@ const PaymentRequest = require('../models/Payments');
 const { body, validationResult } = require('express-validator');
 const multer = require("multer");
 const storage = multer.memoryStorage();
+const Category = require('../models/Category'); // Import Category model
 
 const upload = multer({ storage: storage });
 
@@ -423,6 +424,7 @@ router.post('/process-withdrawals', protect, adminOnly, async (req, res) => {
                 continue;
             }
 
+
             // Deduct balance and process withdrawal
             user.walletBalance -= withdrawal.amount;
             withdrawal.status = "processed";
@@ -759,6 +761,7 @@ router.put('/admin/withdraws/:id', protect, adminOnly, async (req, res) => {
     }
 });
 
+
 // my final 
 
 router.put('/admin/approve-withdraws/:id', protect, adminOnly, async (req, res) => {
@@ -836,7 +839,53 @@ router.put('/admin/approve-withdraws/:id', protect, adminOnly, async (req, res) 
     }
 });
 
-  
+// retrieiving the total number of users 
+router.get('/total-users', async (req, res) => {
+    try {
+        const totalUsers = await User.countDocuments({});
+        res.status(200).json({ totalUsers });
+    } catch (error) {
+        console.error('Error fetching total users:', error);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
+  // retierivng  total investments of the users 
+  router.get('/total-investment', async (req, res) => {
+    try {
+        // Sum of all investments
+        const totalInvestment = await Investment.aggregate([
+            { $group: { _id: null, totalAmount: { $sum: "$amount" } } }
+        ]);
+
+        res.status(200).json({
+            totalInvestment: totalInvestment.length > 0 ? totalInvestment[0].totalAmount : 0
+        });
+    } catch (error) {
+        console.error('Error fetching total investment amount:', error);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
+// top investors according to the amount he invested 
+router.get('/top-investor', async (req, res) => {
+    try {
+        // Find the user with the highest total investment
+        const topInvestor = await User.findOne().sort({ totalInvestment: -1 }).select('email totalInvestment');
+
+        if (!topInvestor) {
+            return res.status(404).json({ message: "No investors found" });
+        }
+
+        res.status(200).json({
+            topInvestor: {
+                email: topInvestor.email,
+                totalInvestment: topInvestor.totalInvestment
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching top investor:', error);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
 module.exports = router;
 // admin token : 
 // eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZG1pbklkIjoiaGFyZGNvZGVkX2FkbWluX2lkIiwicm9sZSI6ImFkbWluIiwiZW1haWwiOiJzdW5pZGhpQGdtYWlsLmNvbSIsImlhdCI6MTc0MzA3NjYzNCwiZXhwIjoxNzQzMTYzMDM0fQ.N7FO_29SMbQgdSU7Ac9VukR6p5tTT9fGPAjLQM9ooq4

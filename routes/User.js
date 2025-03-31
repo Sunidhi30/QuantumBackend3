@@ -140,20 +140,32 @@ router.put('/update-profile', protect, [
 //         res.status(500).json({ success: false, error: error.message });
 //     }
 // });
+// router.get('/plans/category/:category', async (req, res) => {
+//     try {
+//         const category = req.params.category;
+//         const plans = await Plan.find({ category: new RegExp(`^${category}$`, 'i') });
+
+//         if (plans.length === 0) {
+//             return res.status(404).json({ success: false, msg: 'No plans found for this category' });
+//         }
+
+//         res.json({ success: true, msg: 'Plans retrieved successfully', plans });
+
+//     } catch (error) {
+//         res.status(500).json({ success: false, error: error.message });
+//     }
+// });
 router.get('/plans/category/:category', async (req, res) => {
-    try {
-        const category = req.params.category;
-        const plans = await Plan.find({ category: new RegExp(`^${category}$`, 'i') });
+  try {
+      const category = req.params.category;
+      const plans = await Plan.find({ category: new RegExp(`^${category}$`, 'i') });
 
-        if (plans.length === 0) {
-            return res.status(404).json({ success: false, msg: 'No plans found for this category' });
-        }
+      // Return an empty array if no plans are found
+      res.json({ success: true, msg: 'Plans retrieved successfully', plans: plans || [] });
 
-        res.json({ success: true, msg: 'Plans retrieved successfully', plans });
-
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
+  } catch (error) {
+      res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 router.get('/plans/type/:type', async (req, res) => {
@@ -171,7 +183,7 @@ router.get('/plans/type/:type', async (req, res) => {
             return res.status(404).json({ success: false, msg: 'No plans found for this type' });
         }
 
-        res.json({ success: true, msg: 'Plans retrieved successfully', plans });
+        res.json({ success: true, msg: 'Plans retrieved successfully',  plans: plans || []});
 
     } catch (error) {
         res.status(500).json({ success: false, msg: 'Server error', error: error.message });
@@ -205,7 +217,7 @@ router.get('/plans/:id', async (req, res) => {
         if (!plan) {
             return res.status(404).json({ success: false, message: "Plan not found" });
         }
-        res.status(200).json({ success: true, plan });
+        res.status(200).json({ success: true, plans: plans || []});
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }

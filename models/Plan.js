@@ -23,7 +23,7 @@ const planSchema = new mongoose.Schema({
   Addcategory: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Category',
-    required: true
+    required: false
   },
   apy: {
     type: Number,

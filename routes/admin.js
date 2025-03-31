@@ -223,6 +223,7 @@ router.post(
     upload.single("plansImage"), // Allow up to 5 images
     async (req, res) => {
       try {
+       
         const {
           name,
           type,
@@ -239,10 +240,26 @@ router.post(
           riskLevel,
           dealHighlights,
         } = req.body;
-  
+       
+
+         console.log("this is name "+ name);
+         console.log("this is type "+ type);
+         console.log("this is cat "+ category);
+         console.log("this is des "+ description);
+         console.log("this is apy "+ apy);
+         console.log("this is tenure "+ tenureOptions);
+         console.log("this is min "+ minInvestment);
+         console.log("this is max "+ maxInvestment);
+         console.log("this is dividend "+ dividend);
+         console.log("this is risklevel "+ riskLevel);
+
         if (!name || !type || !category || !description || !apy || !tenureOptions || !minInvestment || !maxInvestment || !dividend || !riskLevel) {
           return res.status(400).json({ message: "Missing required fields" });
         }
+
+        // if (!type) {
+        //     return res.status(400).json({ message: "Type is missing from the request." });
+        //   }
       console.log(req.file);
         // Process image uploads
         // let planImages = [];
@@ -290,6 +307,72 @@ router.post(
     }
   );
   
+//   router.post('/plans', protect, adminOnly, async (req, res) => {
+//     try {
+//         const { 
+//             name, 
+//             type, 
+//             category, 
+//             description, 
+//             apy, 
+//             tenureOptions, 
+//             paymentShield, 
+//             minInvestment, 
+//             maxInvestment, 
+//             dividend, 
+//             reward, 
+//             paymentOptions, 
+//             riskLevel,
+//             dealHighlights  // ✅ Now included
+//         } = req.body;
+
+//         // Validate required fields
+//         if (!name || !type || !category || !description || !apy || !tenureOptions || !minInvestment || !maxInvestment || !dividend || !riskLevel) {
+//             return res.status(400).json({ message: "Missing required fields" });
+//         }
+
+//         // Validate category
+//         const validCategories = ['low_risk', 'tax_saving', 'sip', 'high_yield', 'blockchain_funds'];
+//         if (!validCategories.includes(category)) {
+//             return res.status(400).json({ message: "Invalid category" });
+//         }
+
+//         // Ensure dealHighlights is properly structured
+//         const highlights = dealHighlights || {
+//             apy: apy || 0,
+//             paymentShield: paymentShield?.isAvailable || false,
+//             minInvestment: minInvestment || 0,
+//             maturityDate: null,
+//             reward: reward || "No reward",
+//             dividend: dividend || 0
+//         };
+
+//         // Create new investment plan
+//         const newPlan = new Plan({
+//             name,
+//             type,
+//             category,
+//             description,
+//             apy,
+//             tenureOptions,
+//             paymentShield,
+//             minInvestment,
+//             maxInvestment,
+//             dividend,
+//             reward,
+//             paymentOptions,
+//             riskLevel,
+//             dealHighlights: highlights // ✅ Now always included
+//         });
+
+//         await newPlan.save();
+
+//         res.status(201).json({ success: true, plan: newPlan });
+//     } catch (error) {
+//         res.status(500).json({ error: error.message });
+//     }
+// });
+
 
 router.get('/plans', protect, adminOnly, async (req, res) => {
     try {

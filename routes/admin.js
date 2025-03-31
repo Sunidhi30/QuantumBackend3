@@ -266,7 +266,7 @@ router.post(
         // abh smjh aya let or var ka diff 
         if (req.file) {
               const base64 = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
-              var plansImageUrl = await uploadToCloudinary(base64, "plan_images", req.file.mimetype);
+              var plansImageUrl = await uploadToCloudinary(base64, "plansImage", req.file.mimetype);
           console.log(plansImageUrl)
         }
   

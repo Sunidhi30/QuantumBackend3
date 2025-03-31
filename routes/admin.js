@@ -608,6 +608,17 @@ router.get("/faq", async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+// get only referals related questions 
+// ✅ User: Get only referral-related FAQs
+router.get("/faq/referral", async (req, res) => {
+    try {
+        const referralFAQs = await FAQ.find({ question: { $regex: /refer/i } }).sort({ createdAt: -1 });
+
+        res.json({ success: true, faqs: referralFAQs });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
 
 // ✅ Admin: Delete an FAQ
 router.delete("/faq/:id", protect, adminOnly, async (req, res) => {

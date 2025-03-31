@@ -191,7 +191,47 @@ router.get('/plans/type/:type', async (req, res) => {
 });
 
 
+// Send Referral Code API
+router.post('/send-referral', async (req, res) => {
+  try {
+    const { userEmail, friendEmail } = req.body;
 
+    // Validate request body
+    if (!userEmail || !friendEmail) {
+      return res.status(400).json({ success: false, error: "User email and friend's email are required" });
+    }
+
+    // Find the user in the database
+    const existingUser = await User.findOne({ email: userEmail });
+
+    if (!existingUser) {
+      return res.status(404).json({ success: false, error: "User not found" });
+    }
+
+    // Check if the user has a referral code
+    if (!existingUser.referralCode) {
+      return res.status(400).json({ success: false, error: "Referral code not found for this user" });
+    }
+
+    const referralCode = existingUser.referralCode;
+
+    // Send an email to the friend
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: friendEmail,
+      subject: "Referral Invitation",
+      text: `Hello! Your friend has invited you to join. Use their referral code: ${referralCode} when signing up.`,
+      html: `<p>Hello! Your friend has invited you to join.</p>
+             <p><strong>Use their referral code: <span style="color:blue;">${referralCode}</span></strong> when signing up.</p>`
+    });
+
+    return res.status(200).json({ success: true, message: "Referral code sent successfully!" });
+
+  } catch (error) {
+    console.error("Error sending referral:", error);
+    return res.status(500).json({ success: false, error: "Server error" });
+  }
+});
 router.get("/plans/deal-highlights", protect, async (req, res) => {
     try {
         // Fetch only active plans where `dealHighlights` is non-empty
@@ -248,65 +288,125 @@ router.get('/plans/filter', protect, async (req, res) => {
 
   //upload the  kycs dcuemnts this was working but the documents is not getting upload 
 
+// router.post(
+//     "/kyc",
+//     protect,
+//     upload.fields([
+//       { name: "idProof", maxCount: 1 },
+//       { name: "panCard", maxCount: 1 },
+//       { name: "addressProof", maxCount: 1 },
+//     ]),
+//     async (req, res) => {
+//       try {
+//         const user = await User.findById(req.user.id);
+//         if (!user) return res.status(404).json({ message: "User not found" });
+  
+//         const { nationality, accountHolderName, accountNumber, ifscCode, bankName } = req.body;
+  
+//         if (!req.files.idProof || !req.files.addressProof) {
+//           return res.status(400).json({ message: "All required documents must be uploaded" });
+//         }
+  
+//         if (nationality === "Indian" && !req.files.panCard) {
+//           return res.status(400).json({ message: "PAN Card is required for Indian users" });
+//         }
+  
+//         // Function to process and upload documents
+//         const uploadDocument = async (file) => {
+//           if (!file) return null; // Skip if no file provided
+//           const base64 = `data:${file.mimetype};base64,${file.buffer.toString("base64")}`;
+//           return await uploadToCloudinary(base64, "kyc_docs", file.mimetype);
+//         };
+  
+//         // Upload files to Cloudinary
+//         const idProofUrl = await uploadToCloudinary(req.files.idProof[0].buffer, "kyc_docs", req.files.idProof[0].mimetype);
+//         const panCardUrl = req.files.panCard ? await uploadToCloudinary(req.files.panCard[0].buffer, "kyc_docs", req.files.panCard[0].mimetype) : null;
+//         const addressProofUrl = await uploadToCloudinary(req.files.addressProof[0].buffer, "kyc_docs", req.files.addressProof[0].mimetype);
+  
+  
+//         // Save KYC details in the user model
+//         user.kycDocuments = {
+//           idProof: idProofUrl,
+//           panCard: panCardUrl,
+//           addressProof: addressProofUrl,
+//           bankDetails: { accountHolderName, accountNumber, ifscCode, bankName },
+//         };
+//         user.kycStatus = "pending";
+//         await user.save();
+  
+//         console.log("Stored KYC Data:", user.kycDocuments);
+  
+//         res.status(200).json({
+//          userId : req.user.id,
+//             success: true,
+//             message: "KYC submitted successfully. Waiting for admin approval.",
+//             urls: user.kycDocuments, // Return the image URLs
+//           });      } catch (error) {
+//         console.error("KYC Upload Error:", error);
+//         res.status(500).json({ error: error.message });
+//       }
+//     }
+//   );
+// above one was running fine 
 router.post(
-    "/kyc",
-    protect,
-    upload.fields([
-      { name: "idProof", maxCount: 1 },
-      { name: "panCard", maxCount: 1 },
-      { name: "addressProof", maxCount: 1 },
-    ]),
-    async (req, res) => {
-      try {
-        const user = await User.findById(req.user.id);
-        if (!user) return res.status(404).json({ message: "User not found" });
-  
-        const { nationality, accountHolderName, accountNumber, ifscCode, bankName } = req.body;
-  
-        if (!req.files.idProof || !req.files.addressProof) {
-          return res.status(400).json({ message: "All required documents must be uploaded" });
-        }
-  
-        if (nationality === "Indian" && !req.files.panCard) {
-          return res.status(400).json({ message: "PAN Card is required for Indian users" });
-        }
-  
-        // Function to process and upload documents
-        const uploadDocument = async (file) => {
-          if (!file) return null; // Skip if no file provided
-          const base64 = `data:${file.mimetype};base64,${file.buffer.toString("base64")}`;
-          return await uploadToCloudinary(base64, "kyc_docs", file.mimetype);
-        };
-  
-        // Upload files to Cloudinary
-        const idProofUrl = await uploadToCloudinary(req.files.idProof[0].buffer, "kyc_docs", req.files.idProof[0].mimetype);
-        const panCardUrl = req.files.panCard ? await uploadToCloudinary(req.files.panCard[0].buffer, "kyc_docs", req.files.panCard[0].mimetype) : null;
-        const addressProofUrl = await uploadToCloudinary(req.files.addressProof[0].buffer, "kyc_docs", req.files.addressProof[0].mimetype);
-  
-  
-        // Save KYC details in the user model
-        user.kycDocuments = {
-          idProof: idProofUrl,
-          panCard: panCardUrl,
-          addressProof: addressProofUrl,
-          bankDetails: { accountHolderName, accountNumber, ifscCode, bankName },
-        };
-        user.kycStatus = "pending";
-        await user.save();
-  
-        console.log("Stored KYC Data:", user.kycDocuments);
-  
-        res.status(200).json({
-         userId : req.user.id,
-            success: true,
-            message: "KYC submitted successfully. Waiting for admin approval.",
-            urls: user.kycDocuments, // Return the image URLs
-          });      } catch (error) {
-        console.error("KYC Upload Error:", error);
-        res.status(500).json({ error: error.message });
+  "/kyc",
+  protect,
+  upload.fields([
+    { name: "idProof", maxCount: 1 }, // Aadhaar or Passport
+  ]),
+  async (req, res) => {
+    try {
+      const user = await User.findById(req.user.id);
+      if (!user) return res.status(404).json({ message: "User not found" });
+
+      const { nationality, idNumber } = req.body;
+
+      // Ensure nationality and ID number are provided
+      if (!nationality || !idNumber) {
+        return res.status(400).json({ message: "Nationality and ID number are required" });
       }
+
+      // Validate required document based on nationality
+      if (!req.files.idProof) {
+        return res.status(400).json({ message: "ID Proof document is required" });
+      }
+
+      if (nationality === "Indian") {
+        if (!idNumber.match(/^\d{12}$/)) {
+          return res.status(400).json({ message: "Aadhaar number must be 12 digits" });
+        }
+      } else {
+        if (!idNumber.match(/^[A-Z0-9]+$/)) {
+          return res.status(400).json({ message: "Invalid passport number format" });
+        }
+      }
+
+      // Upload ID Proof to Cloudinary
+      const idProofUrl = await uploadToCloudinary(req.files.idProof[0].buffer, "kyc_docs", req.files.idProof[0].mimetype);
+
+      // Save KYC details in the user model
+      user.kycDocuments = {
+        idProof: idProofUrl,
+        idNumber,
+      };
+      user.kycStatus = "pending";
+      await user.save();
+
+      console.log("Stored KYC Data:", user.kycDocuments);
+
+      res.status(200).json({
+        userId: req.user.id,
+        success: true,
+        message: "KYC submitted successfully. Waiting for admin approval.",
+        urls: user.kycDocuments,
+      });
+    } catch (error) {
+      console.error("KYC Upload Error:", error);
+      res.status(500).json({ error: error.message });
     }
-  );
+  }
+);
+
 
 router.get('/kyc-documents', protect, async (req, res) => {
     try {
@@ -323,9 +423,9 @@ router.get('/kyc-documents', protect, async (req, res) => {
         res.status(200).json({
             success: true,
             kycDocuments: {
-                idProof: user.kycDocuments.idProof || null,
-                panCard: user.kycDocuments.panCard || null,
-                addressProof: user.kycDocuments.addressProof || null,
+                idProof: user.kycDocuments.idProof || null
+              
+             
             },
             kycStatus: user.kycStatus
         });

@@ -30,11 +30,91 @@ function generateOTP() {
 }
 
 
+// below one was working fine but without referal code 
+// router.post('/register', async (req, res) => {
+//   console.log(req.body);
+//   try {
+//     const { email, mobileNumber } = req.body;
+
+//     // Ensure at least one is provided
+//     if (!email && !mobileNumber) {
+//       return res.status(200).json({ success: false, error: 'Either email or mobile number is required' });
+//     }
+
+//     // Check if user already exists
+//     const existingUser = await User.findOne({
+//       $or: [
+//         ...(email ? [{ email }] : []),
+//         ...(mobileNumber ? [{ mobileNumber }] : [])
+//       ]
+//     });
+
+//     if (existingUser) {
+//       if (existingUser.email === email) {
+//         return res.status(200).json({ success: false, error: 'Email already registered' });
+//       }
+//       if (existingUser.mobileNumber === mobileNumber) {
+//         return res.status(200).json({ success: false, error: 'Phone number already registered' });
+//       }
+//     }
+
+//     // Generate OTP (for email or mobile)
+//     const otp = generateOTP();
+//     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes expiry
+
+//     const newUser = new User({
+//       email: email || undefined,
+//       mobileNumber: mobileNumber || undefined,
+//       emailOtp: email ? otp : undefined,
+//       emailOtpExpiry: email ? otpExpiry : undefined,
+//       phonePin: mobileNumber ? otp : undefined,
+//       phonePinExpiry: mobileNumber ? otpExpiry : undefined
+//     });
+
+//     // await newUser.save();
+
+//     const sessionId = generateSessionId();
+//     sessions.set(sessionId, { user : newUser });
+
+//     console.log(newUser);
+
+//     // Send OTP to email if provided
+//     if (email) {
+//       await transporter.sendMail({
+//         from: process.env.EMAIL_USER,
+        
+//         to: email,
+//         subject: 'Verify your email',
+//         text: `Your verification code is: ${otp}. It will expire in 10 minutes.`
+//       });
+//     }
+    
+//     // const sessionId = generateSessionId();
+//     // sessions.set(sessionId, { userId: newUser._id });
+
+//     // Here you would integrate an SMS API to send the OTP to mobileNumber if provided
+//     if (mobileNumber) {
+//       console.log(`Send OTP ${otp} to mobile: ${mobileNumber}`);
+//       // Example: await smsService.sendOTP(mobileNumber, otp);
+//     }
+
+//     res.status(201).json({
+//       message: 'User created. Please verify your email or phone number.',
+//       sessionId,
+//       success: true,
+//       nextStep: email ? 'email-verification' : 'phone-verification'
+//     });
+
+//   } catch (error) {
+//     console.error('Registration error:', error);
+//     res.status(200).json({ success: false, error: 'Server error' });
+//   }
+// });
 
 router.post('/register', async (req, res) => {
   console.log(req.body);
   try {
-    const { email, mobileNumber } = req.body;
+    const { email, mobileNumber,referralCode } = req.body;
 
     // Ensure at least one is provided
     if (!email && !mobileNumber) {
@@ -61,16 +141,37 @@ router.post('/register', async (req, res) => {
     // Generate OTP (for email or mobile)
     const otp = generateOTP();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes expiry
+    
 
+    const generateReferralCode = async () => {
+      let code;
+      let isUnique = false;
+      while (!isUnique) {
+        code = Math.random().toString(36).substring(2, 10).toUpperCase();
+        const existingCode = await User.findOne({ referralCode: code });
+        if (!existingCode) isUnique = true;
+      }
+      return code;
+    };
+    const newReferralCode = await generateReferralCode();
+    let referrer = null;
+    if (referralCode) {
+      referrer = await User.findOne({ referralCode });
+      if (!referrer) {
+        return res.status(200).json({ success: false, error: 'Invalid referral code' });
+      }
+    }
+    
     const newUser = new User({
       email: email || undefined,
       mobileNumber: mobileNumber || undefined,
       emailOtp: email ? otp : undefined,
       emailOtpExpiry: email ? otpExpiry : undefined,
       phonePin: mobileNumber ? otp : undefined,
-      phonePinExpiry: mobileNumber ? otpExpiry : undefined
+      phonePinExpiry: mobileNumber ? otpExpiry : undefined,
+      referralCode: newReferralCode,
+      referredBy: referrer ? referrer._id : null
     });
-
     // await newUser.save();
 
     const sessionId = generateSessionId();
@@ -78,6 +179,13 @@ router.post('/register', async (req, res) => {
 
     console.log(newUser);
 
+
+    if (referrer) {
+      const referralBonus = referrer.totalInvestment * 0.035; // 3.5% of investment
+      referrer.referralEarnings += referralBonus;
+      referrer.totalEarnings += referralBonus;
+      await referrer.save();
+    }
     // Send OTP to email if provided
     if (email) {
       await transporter.sendMail({
@@ -102,7 +210,8 @@ router.post('/register', async (req, res) => {
       message: 'User created. Please verify your email or phone number.',
       sessionId,
       success: true,
-      nextStep: email ? 'email-verification' : 'phone-verification'
+      nextStep: email ? 'email-verification' : 'phone-verification',
+      referralCode: newReferralCode
     });
 
   } catch (error) {
@@ -110,7 +219,6 @@ router.post('/register', async (req, res) => {
     res.status(200).json({ success: false, error: 'Server error' });
   }
 });
-
 
 
 router.post('/verify-otp', async (req, res) => {

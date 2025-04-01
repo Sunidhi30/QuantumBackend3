@@ -257,7 +257,7 @@ router.get('/plans/:id', async (req, res) => {
         if (!plan) {
             return res.status(404).json({ success: false, message: "Plan not found" });
         }
-        res.status(200).json({ success: true, plans: plans || []});
+        res.status(200).json({ success: true , plan });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }

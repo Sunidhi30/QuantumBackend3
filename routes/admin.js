@@ -38,7 +38,7 @@ if (!fs.existsSync(downloadsDir)) {
 }
 // Admin Login (Dynamically Generated OTP)
 
-const transporter = nodemailer.createTransport({
+const transporter = nodemailer.createTransport({ 
     service: 'gmail', // Use your email provider
     auth: {
       user: process.env.EMAIL_USER, // Admin email (set in environment variables)
@@ -1082,6 +1082,76 @@ router.get('/top-investor', async (req, res) => {
         res.status(500).json({ message: 'Internal Server Error' });
     }
 });
+// router.get('/plans/count/:category', async (req, res) => {
+//     try {
+//       const category = req.params.category;
+  
+//       // Check if the category is valid
+//       const validCategories = ['low_risk', 'tax_saving', 'AI_funds', 'high_yield', 'blockchain_funds', 'SIP'];
+//       if (!validCategories.includes(category)) {
+//         return res.status(400).json({ message: "Invalid category" });
+//       }
+  
+//       // Count the number of plans in the specified category
+//       const planCount = await Plan.countDocuments({ category });
+  
+//       // Return the count of plans
+//       res.status(200).json({ category, totalPlans: planCount });
+//     } catch (error) {
+//       console.error(error);
+//       res.status(500).json({ error: 'Server error' });
+//     }
+//   });
+// API to get the count of plans in each category
+// router.get("/plans/category-count", async (req, res) => {
+//     try {
+//       const categoryCounts = await Plan.aggregate([
+//         {
+//           $group: {
+//             _id: "$category", // Group by category
+//             totalPlans: { $sum: 1 } // Count the number of plans per category
+//           }
+//         }
+//       ]);
+  
+//       // Formatting response as "category count - number"
+//     //   const formattedResponse = categoryCounts.map(category => ({
+//     //     category: `${category._id} count - ${category.totalPlans}`
+//     //   }));
+//     const formattedResponse = categoryCounts.map(category => ({
+//         category: `${category._id.replace(/_/g, " ")} ${category.totalPlans}`
+//       }));
+  
+//       res.status(200).json(formattedResponse);
+//     } catch (error) {
+//       console.error("Error fetching category counts:", error);
+//       res.status(500).json({ error: "Server error" });
+//     }
+//   });
+router.get("/plans/category-count", async (req, res) => {
+    try {
+      const categoryCounts = await Plan.aggregate([
+        {
+          $group: {
+            _id: "$category", // Group by category
+            totalPlans: { $sum: 1 } // Count the number of plans per category
+          }
+        }
+      ]);
+  
+      // Formatting response
+      const formattedResponse = categoryCounts.map(category => ({
+        name: category._id.replace(/_/g, " "), // Format category name
+        count: category.totalPlans
+      }));
+  
+      res.status(200).json(formattedResponse);
+    } catch (error) {
+      console.error("Error fetching category counts:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
 module.exports = router;
 // admin token : 
 // eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZG1pbklkIjoiaGFyZGNvZGVkX2FkbWluX2lkIiwicm9sZSI6ImFkbWluIiwiZW1haWwiOiJzdW5pZGhpQGdtYWlsLmNvbSIsImlhdCI6MTc0MzA3NjYzNCwiZXhwIjoxNzQzMTYzMDM0fQ.N7FO_29SMbQgdSU7Ac9VukR6p5tTT9fGPAjLQM9ooq4

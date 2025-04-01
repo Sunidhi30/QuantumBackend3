@@ -17,8 +17,25 @@ const planSchema = new mongoose.Schema({
     required: true
   },
   description: {
+  
     type: String,
     required: true
+  },
+  reasonToInvest: {
+    type: String,
+    required: false // Optional field
+  },
+  principal: {
+    type: Number,
+    required: false // Optional field for principal amount
+  },
+  keyStrength: {
+    type: String,
+    required: false
+  },
+  aboutIssuer: {
+    type: String,
+    required: false // Issuer details and plans
   },
   Addcategory: {
     type: mongoose.Schema.Types.ObjectId,

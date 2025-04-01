@@ -229,7 +229,11 @@ router.post(
           type,
           category,
           description,
+          reasonToInvest,
+          principal,
+          keyStrength,
           apy,
+    
           tenureOptions,
           paymentShield,
           minInvestment,
@@ -239,6 +243,7 @@ router.post(
           paymentOptions,
           riskLevel,
           dealHighlights,
+          aboutIssuer
         } = req.body;
        
 
@@ -285,6 +290,9 @@ router.post(
           type,
           category,
           description,
+          reasonToInvest,
+          principal,
+          keyStrength,
           apy,
           tenureOptions,
           paymentShield,
@@ -294,6 +302,7 @@ router.post(
           reward,
           paymentOptions,
           riskLevel,
+          aboutIssuer,
           dealHighlights: highlights,
           planImages: plansImageUrl, // Store image URLs in the database
         });

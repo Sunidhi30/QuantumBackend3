@@ -262,7 +262,7 @@ router.get('/plans/:id', async (req, res) => {
         res.status(500).json({ success: false, error: error.message });
     }
 });
-// filter for the search query
+// filter for the search query not added in the docs
 router.get('/plans/filter', protect, async (req, res) => {
     try {
         let query = {};
@@ -436,120 +436,120 @@ router.get('/kyc-documents', protect, async (req, res) => {
     }
 });
 // skipped on the postman for now
-router.post("/investments/create", protect, async (req, res) => {
-    try {
-        const userId = req.user.id;
-        const { planId, amount, paymentMethod, paymentDetails } = req.body;
+// router.post("/investments/create", protect, async (req, res) => {
+//     try {
+//         const userId = req.user.id;
+//         const { planId, amount, paymentMethod, paymentDetails } = req.body;
 
-        // Validate required fields
-        if (!planId || !amount || !paymentMethod) {
-            return res.status(400).json({ success: false, message: "All fields are required" });
-        }
+//         // Validate required fields
+//         if (!planId || !amount || !paymentMethod) {
+//             return res.status(400).json({ success: false, message: "All fields are required" });
+//         }
 
-        // Fetch the investment plan
-        const plan = await Plan.findById(planId);
-        if (!plan || !plan.isActive) {
-            return res.status(404).json({ success: false, message: "Plan not found or inactive" });
-        }
+//         // Fetch the investment plan
+//         const plan = await Plan.findById(planId);
+//         if (!plan || !plan.isActive) {
+//             return res.status(404).json({ success: false, message: "Plan not found or inactive" });
+//         }
 
-        // Validate investment amount
-        if (amount < plan.minInvestment || amount > plan.maxInvestment) {
-            return res.status(400).json({ success: false, message: `Investment amount must be between ₹${plan.minInvestment} and ₹${plan.maxInvestment}` });
-        }
+//         // Validate investment amount
+//         if (amount < plan.minInvestment || amount > plan.maxInvestment) {
+//             return res.status(400).json({ success: false, message: `Investment amount must be between ₹${plan.minInvestment} and ₹${plan.maxInvestment}` });
+//         }
 
-        // Fetch user details
-        const user = await User.findById(userId);
-        if (!user) {
-            return res.status(404).json({ success: false, message: "User not found" });
-        }
+//         // Fetch user details
+//         const user = await User.findById(userId);
+//         if (!user) {
+//             return res.status(404).json({ success: false, message: "User not found" });
+//         }
 
-        // Check if the user has enough wallet balance (Optional - Uncomment if wallet system is implemented)
-        // if (user.walletBalance < amount) {
-        //     return res.status(400).json({ success: false, message: "Insufficient wallet balance" });
-        // }
+//         // Check if the user has enough wallet balance (Optional - Uncomment if wallet system is implemented)
+//         // if (user.walletBalance < amount) {
+//         //     return res.status(400).json({ success: false, message: "Insufficient wallet balance" });
+//         // }
 
-        // Calculate maturity date based on tenure
-        const tenureInMonths = parseInt(plan.tenureOptions[plan.tenureOptions.length - 1]); // Get last tenure option
-        const maturityDate = new Date();
-        maturityDate.setMonth(maturityDate.getMonth() + tenureInMonths);
+//         // Calculate maturity date based on tenure
+//         const tenureInMonths = parseInt(plan.tenureOptions[plan.tenureOptions.length - 1]); // Get last tenure option
+//         const maturityDate = new Date();
+//         maturityDate.setMonth(maturityDate.getMonth() + tenureInMonths);
 
-        // Calculate maturity amount using simple interest formula
-        const maturityAmount = amount + (amount * (plan.apy / 100));
+//         // Calculate maturity amount using simple interest formula
+//         const maturityAmount = amount + (amount * (plan.apy / 100));
 
-        // Create new investment record
-        const newInvestment = new Investment({
-            user: userId,
-            plan: planId,
-            planName: plan.name,
-            amount,
-            apr: plan.apy,
-            startDate: new Date(),
-            endDate: maturityDate,
-            maturityAmount,
-            paymentMethod,
-            paymentDetails,
-            payoutFrequency: plan.paymentOptions[0], // Default to first option
-            status: "pending" // Change to "active" after admin approval (if required)
-        });
+//         // Create new investment record
+//         const newInvestment = new Investment({
+//             user: userId,
+//             plan: planId,
+//             planName: plan.name,
+//             amount,
+//             apr: plan.apy,
+//             startDate: new Date(),
+//             endDate: maturityDate,
+//             maturityAmount,
+//             paymentMethod,
+//             paymentDetails,
+//             payoutFrequency: plan.paymentOptions[0], // Default to first option
+//             status: "pending" // Change to "active" after admin approval (if required)
+//         });
 
-        await newInvestment.save();
+//         await newInvestment.save();
 
-        // Deduct from user's wallet (If wallet system is used)
-        // user.walletBalance -= amount;
-        user.totalInvestment += amount;
-        await user.save();
+//         // Deduct from user's wallet (If wallet system is used)
+//         // user.walletBalance -= amount;
+//         user.totalInvestment += amount;
+//         await user.save();
 
-        res.status(200).json({ success: true, message: "Investment successful!", investment: newInvestment });
+//         res.status(200).json({ success: true, message: "Investment successful!", investment: newInvestment });
 
-    } catch (error) {
-        console.error("Error in investment:", error);
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
+//     } catch (error) {
+//         console.error("Error in investment:", error);
+//         res.status(500).json({ success: false, error: error.message });
+//     }
+// });
 
-router.get("/investments/:userId", protect, async (req, res) => {
-    try {
-        const userId = req.params.userId;
+// router.get("/investments/:userId", protect, async (req, res) => {
+//     try {
+//         const userId = req.params.userId;
 
-        // Find investments made by the user
-        const investments = await Investment.find({ user: userId }).populate("plan");
+//         // Find investments made by the user
+//         const investments = await Investment.find({ user: userId }).populate("plan");
 
-        if (!investments.length) {
-            return res.status(404).json({ success: false, message: "No investments found for this user." });
-        }
+//         if (!investments.length) {
+//             return res.status(404).json({ success: false, message: "No investments found for this user." });
+//         }
 
-        // Calculate the investment details
-        const investmentDetails = investments.map(investment => {
-            const { planName, amount, apr, startDate, endDate, maturityAmount } = investment;
+//         // Calculate the investment details
+//         const investmentDetails = investments.map(investment => {
+//             const { planName, amount, apr, startDate, endDate, maturityAmount } = investment;
 
-            // Convert startDate and endDate to Date objects
-            const start = new Date(startDate);
-            const end = new Date(endDate);
+//             // Convert startDate and endDate to Date objects
+//             const start = new Date(startDate);
+//             const end = new Date(endDate);
 
-            // 🔹 Calculate tenure in months
-            const tenure = Math.round((end - start) / (1000 * 60 * 60 * 24 * 30)); 
+//             // 🔹 Calculate tenure in months
+//             const tenure = Math.round((end - start) / (1000 * 60 * 60 * 24 * 30)); 
 
-            // 🔹 Yield to Maturity (YTM) Calculation
-            const YTM = ((maturityAmount - amount) / amount) * 100;
+//             // 🔹 Yield to Maturity (YTM) Calculation
+//             const YTM = ((maturityAmount - amount) / amount) * 100;
 
-            // 🔹 Total Profit Earned
-            const totalProfit = maturityAmount - amount;
+//             // 🔹 Total Profit Earned
+//             const totalProfit = maturityAmount - amount;
 
-            return {
-                planName,
-                tenure: `${tenure} months`,
-                minInvestment: amount,
-                yieldToMaturity: `${YTM.toFixed(2)}%`,
-                totalProfit
-            };
-        });
+//             return {
+//                 planName,
+//                 tenure: `${tenure} months`,
+//                 minInvestment: amount,
+//                 yieldToMaturity: `${YTM.toFixed(2)}%`,
+//                 totalProfit
+//             };
+//         });
 
-        res.status(200).json({ success: true, investments: investmentDetails });
-    } catch (error) {
-        console.error("Error fetching investment details:", error);
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
+//         res.status(200).json({ success: true, investments: investmentDetails });
+//     } catch (error) {
+//         console.error("Error fetching investment details:", error);
+//         res.status(500).json({ success: false, error: error.message });
+//     }
+// });
 
 // 🔹 Fetch Investments with YTM & Profit
 // router.get("/investments", protect, async (req, res) => {

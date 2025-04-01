@@ -22,7 +22,7 @@ const planSchema = new mongoose.Schema({
     required: true
   },
   reasonToInvest: {
-    type: String,
+    type: [String], 
     required: false // Optional field
   },
   principal: {
@@ -30,11 +30,11 @@ const planSchema = new mongoose.Schema({
     required: false // Optional field for principal amount
   },
   keyStrength: {
-    type: String,
+    type: [String], // Array of strings
     required: false
   },
   aboutIssuer: {
-    type: String,
+    type: [String], 
     required: false // Issuer details and plans
   },
   Addcategory: {

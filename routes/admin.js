@@ -285,27 +285,53 @@ router.post(
         };
      
   
+        // const newPlan = new Plan({
+        //   name,
+        //   type,
+        //   category,
+        //   description,
+        //   reasonToInvest,
+        //   principal,
+        //   keyStrength,
+        //   apy,
+        //   tenureOptions,
+        //   paymentShield,
+        //   minInvestment,
+        //   maxInvestment,
+        //   dividend,
+        //   reward,
+        //   paymentOptions,
+        //   riskLevel,
+        //   aboutIssuer,
+        //   dealHighlights: highlights,
+        //   planImages: plansImageUrl, // Store image URLs in the database
+        // });
         const newPlan = new Plan({
-          name,
-          type,
-          category,
-          description,
-          reasonToInvest,
-          principal,
-          keyStrength,
-          apy,
-          tenureOptions,
-          paymentShield,
-          minInvestment,
-          maxInvestment,
-          dividend,
-          reward,
-          paymentOptions,
-          riskLevel,
-          aboutIssuer,
-          dealHighlights: highlights,
-          planImages: plansImageUrl, // Store image URLs in the database
-        });
+            name,
+            type,
+            category,
+            description,
+            aboutIssuer: Array.isArray(aboutIssuer)
+              ? aboutIssuer
+              : aboutIssuer.split(".."), // Convert comma-separated strings to array
+            keyStrength: Array.isArray(keyStrength)
+              ? keyStrength
+              : keyStrength.split(".."),
+            reasonToInvest: Array.isArray(reasonToInvest)
+              ? reasonToInvest
+              : reasonToInvest.split(".."),
+            apy,
+            tenureOptions,
+            paymentShield,
+            minInvestment,
+            maxInvestment,
+            dividend,
+            reward,
+            paymentOptions,
+            riskLevel,
+            dealHighlights: highlights,
+            planImages: plansImageUrl,
+          });
   
         await newPlan.save();
   

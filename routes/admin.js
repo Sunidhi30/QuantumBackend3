@@ -4,6 +4,7 @@ const express = require('express');
 const nodemailer = require("nodemailer");
 const { uploadToCloudinary } = require("../utils/cloudinary");
 const jwt = require('jsonwebtoken');
+
 const dotenv = require('dotenv');
 const mongoose = require("mongoose");
 const Investment = require('../models/Investment'); 
@@ -22,13 +23,19 @@ const { body, validationResult } = require('express-validator');
 const multer = require("multer");
 const storage = multer.memoryStorage();
 const Category = require('../models/Category'); // Import Category model
+const PDFDocument = require("pdfkit");
 
 const upload = multer({ storage: storage });
 
 dotenv.config();
 const router = express.Router();
 const Quiz = require('../models/Quiz');
-
+const fs = require("fs");
+const path = require("path");
+const downloadsDir = path.join(__dirname, "../downloads");
+if (!fs.existsSync(downloadsDir)) {
+  fs.mkdirSync(downloadsDir, { recursive: true }); // Creates folder if missing
+}
 // Admin Login (Dynamically Generated OTP)
 
 const transporter = nodemailer.createTransport({
@@ -341,6 +348,66 @@ router.post(
       }
     }
   );
+  router.get("/download/pdf/:planId", async (req, res) => {
+    try {
+      const { planId } = req.params;
+      const plan = await Plan.findById(planId);
+  
+      if (!plan) {
+        return res.status(404).json({ message: "Plan not found" });
+      }
+  
+      // Ensure downloads directory exists
+      const downloadsDir = path.join(__dirname, "../downloads");
+      if (!fs.existsSync(downloadsDir)) {
+        fs.mkdirSync(downloadsDir, { recursive: true }); // Create folder if it doesn't exist
+      }
+  
+      // Define PDF path
+      const pdfPath = path.join(downloadsDir, `plan_${planId}.pdf`);
+      const stream = fs.createWriteStream(pdfPath);
+  
+      // Create a new PDF document
+      const doc = new PDFDocument();
+      doc.pipe(stream);
+  
+      // Add title
+      doc.fontSize(20).text(`Plan Details: ${plan.name}`, { align: "center" });
+      doc.moveDown();
+  
+      // Plan details
+      doc.fontSize(16).text(`Type: ${plan.type}`);
+      doc.text(`Category: ${plan.category}`);
+      doc.text(`Description: ${plan.description}`);
+      doc.text(`APY: ${plan.apy}%`);
+      doc.text(`Minimum Investment: $${plan.minInvestment}`);
+      doc.text(`Maximum Investment: $${plan.maxInvestment}`);
+      doc.text(`Risk Level: ${plan.riskLevel}`);
+      doc.text(`Dividend: ${plan.dividend}`);
+      doc.moveDown();
+  
+      // Convert arrays to readable format
+      doc.fontSize(12).text(`🔹 About Issuer: ${plan.aboutIssuer.join(", ")}`);
+      doc.text(`🔹 Key Strengths: ${plan.keyStrength.join(", ")}`);
+      doc.text(`🔹 Reasons to Invest: ${plan.reasonToInvest.join(", ")}`);
+  
+      doc.moveDown();
+      doc.end();
+  
+      // Wait for PDF to be created and send it as a response
+      stream.on("finish", () => {
+        res.download(pdfPath, `Plan_${plan.name}.pdf`, (err) => {
+          if (err) {
+            console.error("Error downloading file:", err);
+            res.status(500).json({ error: "Error downloading file" });
+          }
+        });
+      });
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
   
 //   router.post('/plans', protect, adminOnly, async (req, res) => {
 //     try {

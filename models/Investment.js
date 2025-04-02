@@ -27,6 +27,11 @@ const investmentSchema = new mongoose.Schema({
     required: true,
     min: 0
   },
+  TAXAmount: {
+    type: Number,
+    required: true,
+    min: 0
+  },
   apr: {
     type: Number,
     required: true
@@ -46,7 +51,7 @@ const investmentSchema = new mongoose.Schema({
   paymentMethod: {
     type: String,
     enum: ['bank_transfer', 'payment_gateway', 'crypto', 'cms'],
-    required: true
+    required: false
   },
   paymentDetails: {
     transactionId: String,

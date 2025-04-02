@@ -48,17 +48,18 @@ const userSchema = new mongoose.Schema({
   //   addressProof: String,
   //   selfie: String
   // },
-  ycDocuments: {
+  kycDocuments: {
     idProof: String, // Cloudinary URL
-    panCard: String, // Cloudinary URL (Only for Indian users)
-    addressProof: String, // Cloudinary URL
+    // panCard: String, // Cloudinary URL (Only for Indian users)
+    // addressProof: String, // Cloudinary URL
     // dematAccount: String,// aree bhaii chor dete hai
-    bankDetails: {
-      accountHolderName: String,
-      accountNumber: String,
-      ifscCode: String,
-      bankName: String,
-    },
+    // bankDetails: {
+    //   accountHolderName: String,
+    //   accountNumber: String,
+    //   ifscCode: String,
+    //   bankName: String,
+    // },
+    idNumber: Number
   },
   bankDetails: {
     accountHolderName: String,

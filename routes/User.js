@@ -240,7 +240,7 @@ router.get('/plans/filter', protect, async (req, res) => {
         res.status(500).json({ success: false, error: error.message });
     }
 });
-
+//kycs of the users 
 router.post(
   "/kyc",
   protect,
@@ -301,7 +301,6 @@ router.post(
     }
   }
 );
-
 // list of the docs of kyc
 router.get('/kyc-documents', protect, async (req, res) => {
   try {
@@ -328,7 +327,6 @@ router.get('/kyc-documents', protect, async (req, res) => {
       res.status(500).json({ message: "Internal server error" });
   }
 });
-
 // invest now options clicked api for that
 router.post("/investments/create", protect, async (req, res) => {
   try {
@@ -738,92 +736,162 @@ router.post('/upload-query', protect , async (req, res) => {
     }
   });  
 // api for request of users to deposti the payement 
-router.post('/request', protect, async (req, res) => {
-    try {
-      const { bankName, amount, transactionId } = req.body;
+// router.post('/request', protect, async (req, res) => {
+//     try {
+//       const { bankName, amount, transactionId } = req.body;
   
+//       // Validate input
+//       if (!bankName || !amount || !transactionId) {
+//         return res.status(400).json({ 
+//           success: false, 
+//           message: 'Please provide bank name, amount, and transaction ID' 
+//         });
+//       }
+  
+//       // Check if amount is positive
+//       if (amount <= 0) {
+//         return res.status(400).json({ 
+//           success: false, 
+//           message: 'Amount must be greater than zero' 
+//         });
+//       }
+  
+//       // Check if transaction ID already exists
+//       const existingRequest = await PaymentRequest.findOne({ transactionId });
+//       if (existingRequest) {
+//         return res.status(400).json({ 
+//           success: false, 
+//           message: 'Transaction ID already submitted' 
+//         });
+//       }
+  
+//       // Create payment request
+//       const paymentRequest = new PaymentRequest({
+//         user: req.user._id,
+//         bankName,
+//         amount,
+//         transactionId
+//       });
+  
+//       await paymentRequest.save();
+  
+//       // Fetch user email
+//       const user = await User.findById(req.user._id);
+//       if (!user) {
+//         return res.status(404).json({ 
+//           success: false, 
+//           message: 'User not found' 
+//         });
+//       }
+  
+//       // Send email notification
+//       const mailOptions = {
+//         from: process.env.EMAIL_USER,
+//         to: user.email,
+//         subject: 'Payment Request Submitted',
+//         html: `
+//           <h2>Payment Request Submitted Successfully</h2>
+//           <p>Dear ${user.username},</p>
+//           <p>Your payment request has been submitted successfully with the following details:</p>
+//           <ul>
+//             <li><strong>Bank Name:</strong> ${bankName}</li>
+//             <li><strong>Amount:</strong> ₹${amount}</li>
+//             <li><strong>Transaction ID:</strong> ${transactionId}</li>
+//             <li><strong>Status:</strong> Pending</li>
+//           </ul>
+//           <p>We will review your request and update the status soon.</p>
+//           <p>Thank you for using our service!</p>
+//         `
+//       };
+  
+//       await transporter.sendMail(mailOptions);
+  
+//       res.status(200).json({
+//         success: true,
+//         message: 'Payment request submitted successfully. Email confirmation sent.',
+//         data: paymentRequest
+//       });
+  
+//     } catch (error) {
+//       console.error('Error creating payment request:', error);
+//       res.status(500).json({ 
+//         success: false, 
+//         message: 'Error creating payment request',
+//         error: error.message 
+//       });
+//     }
+//   });
+router.post('/request', protect, async (req, res) => {
+  try {
+      const { bankName, amount, transactionId } = req.body;
+
       // Validate input
       if (!bankName || !amount || !transactionId) {
-        return res.status(400).json({ 
-          success: false, 
-          message: 'Please provide bank name, amount, and transaction ID' 
-        });
+          return res.status(400).json({ 
+              success: false, 
+              message: 'Please provide bank name, amount, and transaction ID' 
+          });
       }
-  
+
       // Check if amount is positive
       if (amount <= 0) {
-        return res.status(400).json({ 
-          success: false, 
-          message: 'Amount must be greater than zero' 
-        });
+          return res.status(400).json({ 
+              success: false, 
+              message: 'Amount must be greater than zero' 
+          });
       }
-  
+
       // Check if transaction ID already exists
       const existingRequest = await PaymentRequest.findOne({ transactionId });
       if (existingRequest) {
-        return res.status(400).json({ 
-          success: false, 
-          message: 'Transaction ID already submitted' 
-        });
+          return res.status(400).json({ 
+              success: false, 
+              message: 'Transaction ID already submitted' 
+          });
       }
-  
+
       // Create payment request
       const paymentRequest = new PaymentRequest({
-        user: req.user._id,
-        bankName,
-        amount,
-        transactionId
+          user: req.user._id,
+          bankName,
+          amount,
+          wallet: amount,
+          transactionId
       });
-  
+ 
       await paymentRequest.save();
-  
-      // Fetch user email
+
+      // Fetch user and update wallet balance
       const user = await User.findById(req.user._id);
       if (!user) {
-        return res.status(404).json({ 
-          success: false, 
-          message: 'User not found' 
-        });
+          return res.status(404).json({ 
+              success: false, 
+              message: 'User not found' 
+          });
       }
-  
-      // Send email notification
-      const mailOptions = {
-        from: process.env.EMAIL_USER,
-        to: user.email,
-        subject: 'Payment Request Submitted',
-        html: `
-          <h2>Payment Request Submitted Successfully</h2>
-          <p>Dear ${user.username},</p>
-          <p>Your payment request has been submitted successfully with the following details:</p>
-          <ul>
-            <li><strong>Bank Name:</strong> ${bankName}</li>
-            <li><strong>Amount:</strong> ₹${amount}</li>
-            <li><strong>Transaction ID:</strong> ${transactionId}</li>
-            <li><strong>Status:</strong> Pending</li>
-          </ul>
-          <p>We will review your request and update the status soon.</p>
-          <p>Thank you for using our service!</p>
-        `
-      };
-  
-      await transporter.sendMail(mailOptions);
-  
+
+      // Update user's wallet balance
+      user.walletBalance += amount;
+      console.log(user);
+      await user.save();
+
       res.status(200).json({
-        success: true,
-        message: 'Payment request submitted successfully. Email confirmation sent.',
-        data: paymentRequest
+          success: true,
+          message: 'Payment request submitted successfully. Wallet updated.',
+          data: paymentRequest
       });
-  
-    } catch (error) {
+
+  } catch (error) {
       console.error('Error creating payment request:', error);
       res.status(500).json({ 
-        success: false, 
-        message: 'Error creating payment request',
-        error: error.message 
+          success: false, 
+          message: 'Error creating payment request',
+          error: error.message 
       });
-    }
-  });
-  // payement added to the wallet 
+  }
+});
+
+// payement added to the wallet 
   router.get('/wallet', protect, async (req, res) => {
     try {
         const user = await User.findById(req.user._id).select('walletBalance');

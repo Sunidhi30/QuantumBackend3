@@ -657,7 +657,7 @@ router.get("/faq", async (req, res) => {
     }
 });
 // rewards users can see 
-router.get('/user-rewards/:userId', async (req, res) => {
+router.get('g', async (req, res) => {
     try {
         const { userId } = req.params;
         const user = await User.findById(userId);
@@ -832,7 +832,6 @@ router.post('/request', protect, async (req, res) => {
               message: 'Please provide bank name, amount, and transaction ID' 
           });
       }
-
       // Check if amount is positive
       if (amount <= 0) {
           return res.status(400).json({ 
@@ -849,7 +848,6 @@ router.post('/request', protect, async (req, res) => {
               message: 'Transaction ID already submitted' 
           });
       }
-
       // Create payment request
       const paymentRequest = new PaymentRequest({
           user: req.user._id,
@@ -891,7 +889,7 @@ router.post('/request', protect, async (req, res) => {
   }
 });
 
-// payement added to the wallet 
+// popayement added to the wallet 
   router.get('/wallet', protect, async (req, res) => {
     try {
         const user = await User.findById(req.user._id).select('walletBalance');

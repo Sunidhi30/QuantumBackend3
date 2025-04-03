@@ -24,9 +24,7 @@ const multer = require("multer");
 const storage = multer.memoryStorage();
 const Category = require('../models/Category'); // Import Category model
 const PDFDocument = require("pdfkit");
-
 const upload = multer({ storage: storage });
-
 dotenv.config();
 const router = express.Router();
 const Quiz = require('../models/Quiz');
@@ -37,7 +35,6 @@ if (!fs.existsSync(downloadsDir)) {
   fs.mkdirSync(downloadsDir, { recursive: true }); // Creates folder if missing
 }
 // Admin Login (Dynamically Generated OTP)
-
 const transporter = nodemailer.createTransport({ 
     service: 'gmail', // Use your email provider
     auth: {
@@ -45,7 +42,6 @@ const transporter = nodemailer.createTransport({
       pass: process.env.EMAIL_PASS // Admin email password (use env variables for security)
     }
   });
-  
 // // Middleware to verify admin token
 const verifyAdmin = (req, res, next) => {
     const token = req.header('Authorization');
@@ -72,9 +68,6 @@ router.post('/login', (req, res) => {
 
     res.json({ msg: 'OTP sent (0000 for now)', otp: ADMIN_OTP });
 });
-
-
-
 router.post('/verify-login-otp', (req, res) => {
     const { email, phone, otp } = req.body;
 
@@ -87,29 +80,23 @@ router.post('/verify-login-otp', (req, res) => {
 
     res.json({ msg: 'Admin login successful', token });
 });
-
-
 // 3️⃣ **Middleware to Verify Admin Token**
-
-//
-
 // // Admin Dashboard Overview
-router.get('/dashboard', protect, adminOnly, async (req, res) => {
-    try {
-        const totalInvestments = await Investment.aggregate([{ $group: { _id: "$planName", total: { $sum: "$amount" } } }]);
-        const totalUsers = await User.countDocuments({ role: "user" });
+// router.get('/dashboard', protect, adminOnly, async (req, res) => {
+//     try {
+//         const totalInvestments = await Investment.aggregate([{ $group: { _id: "$planName", total: { $sum: "$amount" } } }]);
+//         const totalUsers = await User.countDocuments({ role: "user" });
 
-        res.json({ 
-            message: 'Admin Dashboard', 
-            totalInvestments, 
-            totalUsers 
-        });
+//         res.json({ 
+//             message: 'Admin Dashboard', 
+//             totalInvestments, 
+//             totalUsers 
+//         });
 
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
+//     } catch (error) {
+//         res.status(500).json({ error: error.message });
+//     }
+// });
 // ✅ Get Investment Stats (Without User Data Exposure)
 router.get('/investment-stats', protect, adminOnly, async (req, res) => {
     try {
@@ -122,7 +109,6 @@ router.get('/investment-stats', protect, adminOnly, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-
 // ✅ Get Withdrawal Stats (Without User Data Exposure)
 router.get('/withdrawal-stats', protect, adminOnly, async (req, res) => {
     try {
@@ -136,7 +122,6 @@ router.get('/withdrawal-stats', protect, adminOnly, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-
 // router.put('/kyc-approve/:userId', protect, adminOnly, async (req, res) => {
 //     try {
 //         const { status, reason } = req.body;
@@ -221,8 +206,6 @@ router.put('/approve/:id', protect, async (req, res) => {
         });
     }
   });
-  
-
 router.post(
     "/plans",
     protect,
@@ -408,7 +391,6 @@ router.post(
       res.status(500).json({ error: error.message });
     }
   });
-  
 //   router.post('/plans', protect, adminOnly, async (req, res) => {
 //     try {
 //         const { 
@@ -475,7 +457,6 @@ router.post(
 //     }
 // });
 
-
 router.get('/plans', protect, adminOnly, async (req, res) => {
     try {
         let query = {};
@@ -515,7 +496,6 @@ router.get('/plans/category/:category', protect, adminOnly, async (req, res) => 
         res.status(500).json({ error: error.message });
     }
 });
-
 router.put('/plans/:id', protect, adminOnly, async (req, res) => {
     try {
         const planId = req.params.id;
@@ -533,7 +513,6 @@ router.put('/plans/:id', protect, adminOnly, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-
 router.delete('/plans/:id', protect, adminOnly, async (req, res) => {
     try {
         const planId = req.params.id;
@@ -557,7 +536,6 @@ router.delete('/plans/:id', protect, adminOnly, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-
 router.patch('/plans/:id/deactivate', protect, adminOnly, async (req, res) => {
     try {
         const planId = req.params.id;
@@ -575,10 +553,8 @@ router.patch('/plans/:id/deactivate', protect, adminOnly, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-
 // withdraws 
 const Withdrawal = require('../models/Withdrawal'); // Create this model if not available
-
 router.post('/process-withdrawals', protect, adminOnly, async (req, res) => {
     try {
         // Fetch all pending withdrawals
@@ -630,7 +606,6 @@ router.post('/process-withdrawals', protect, adminOnly, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-
 router.put("/kyc/:userId", protect, async (req, res) => {
     console.log(req.params.userId)
     try {
@@ -655,7 +630,7 @@ router.put("/kyc/:userId", protect, async (req, res) => {
       res.status(500).json({ error: error.message });
     }
   });
-  // yeh ri api bhaii test krte h na 
+ 
 router.get('/transactions', protect, adminOnly, async (req, res) => {
     try {
         let { type, status, sort = '-createdAt' } = req.query;
@@ -674,7 +649,6 @@ router.get('/transactions', protect, adminOnly, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-
 router.get('/login-logs', protect, adminOnly, async (req, res) => {
     try {
         const logs = await AdminLog.find().sort('-createdAt');
@@ -700,7 +674,6 @@ router.post("/faq", protect, adminOnly, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-
 // ✅ User: Get all FAQs
 router.get("/faq", async (req, res) => {
     try {
@@ -721,7 +694,6 @@ router.get("/faq/referral", async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-
 // ✅ Admin: Delete an FAQ
 router.delete("/faq/:id", protect, adminOnly, async (req, res) => {
     try {
@@ -757,9 +729,8 @@ router.post('/add-reward',protect, async (req, res) => {
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
-  
   // Get all rewards
-  router.get('/rewards-all',protect, async (req, res) => {
+router.get('/rewards-all',protect, async (req, res) => {
     try {
       const rewards = await Reward.find();
       res.json(rewards);
@@ -767,9 +738,8 @@ router.post('/add-reward',protect, async (req, res) => {
       res.status(500).json({ message: "Server Error", error });
     }
   });
- 
   // Delete a reward
-  router.delete('/delete/:id',protect, async (req, res) => {
+router.delete('/delete/:id',protect, async (req, res) => {
     try {
       await Reward.findByIdAndDelete(req.params.id);
       res.json({ message: "Reward deleted successfully" });
@@ -778,7 +748,7 @@ router.post('/add-reward',protect, async (req, res) => {
     }
   });
   // admin quiz 
-  router.post('/add', protect, async (req, res) => {
+router.post('/add', protect, async (req, res) => {
     try {
       const { question, options, correctAnswer } = req.body;
       const adminId = req.user._id; // Get admin ID from token
@@ -801,7 +771,6 @@ router.post('/add-reward',protect, async (req, res) => {
       res.status(500).json({ message: 'Server error', error: error.message });
     }
   });
-
 router.put('/admin/approve/:id', protect, adminOnly, async (req, res) => {
     try {
         const { status, adminNotes } = req.body;
@@ -873,8 +842,6 @@ router.put('/admin/approve/:id', protect, adminOnly, async (req, res) => {
         res.status(500).json({ success: false, message: 'Error updating payment request', error: error.message });
     }
 });
-
-
 router.get('/withdrawals',protect,async (req, res) => {
     try {
         const withdrawals = await PaymentRequest.find().populate('user', 'username email');
@@ -884,8 +851,6 @@ router.get('/withdrawals',protect,async (req, res) => {
         res.status(500).json({ message: 'Internal server error' });
     }
 });
-
-
 router.put('/admin/withdraws/:id', protect, adminOnly, async (req, res) => {
     try {
         const { status, adminNotes } = req.body;
@@ -956,10 +921,7 @@ router.put('/admin/withdraws/:id', protect, adminOnly, async (req, res) => {
         res.status(500).json({ success: false, message: 'Server error', error: error.message });
     }
 });
-
-
 // my final 
-
 router.put('/admin/approve-withdraws/:id', protect, adminOnly, async (req, res) => {
     try {
         const { status, adminNotes } = req.body;
@@ -1034,7 +996,6 @@ router.put('/admin/approve-withdraws/:id', protect, adminOnly, async (req, res) 
         res.status(500).json({ success: false, message: 'Error updating withdrawal request', error: error.message });
     }
 });
-
 // retrieiving the total number of users 
 router.get('/total-users', async (req, res) => {
     try {

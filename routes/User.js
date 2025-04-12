@@ -869,7 +869,9 @@ router.post('/request', protect, async (req, res) => {
       }
 
       // Update user's wallet balance
-      user.walletBalance += amount;
+      // user.walletBalance += amount;
+      user.walletBalance = Number(user.walletBalance) + Number(amount);
+
       console.log(user);
       await user.save();
 
@@ -888,8 +890,7 @@ router.post('/request', protect, async (req, res) => {
       });
   }
 });
-
-// popayement added to the wallet 
+// payement added to the wallet 
   router.get('/wallet', protect, async (req, res) => {
     try {
         const user = await User.findById(req.user._id).select('walletBalance');
@@ -996,48 +997,48 @@ router.get('/transactions/:userId', async (req, res) => {
     }
 });
 // sell the  investments plans
-router.post('/sell', async (req, res) => {
-    try {
-        const { userId, investmentId } = req.body;
+// router.post('/sell', async (req, res) => {
+//     try {
+//         const { userId, investmentId } = req.body;
 
-        // Fetch investment and user
-        const investment = await Investment.findById(investmentId);
-        const user = await User.findById(userId);
+//         // Fetch investment and user
+//         const investment = await Investment.findById(investmentId);
+//         const user = await User.findById(userId);
 
-        if (!investment || !user) {
-            return res.status(404).json({ message: 'Investment or User not found' });
-        }
+//         if (!investment || !user) {
+//             return res.status(404).json({ message: 'Investment or User not found' });
+//         }
 
-        // Check if investment is already completed or cancelled
-        if (investment.status !== 'active') {
-            return res.status(400).json({ message: 'Investment cannot be sold' });
-        }
+//         // Check if investment is already completed or cancelled
+//         if (investment.status !== 'active') {
+//             return res.status(400).json({ message: 'Investment cannot be sold' });
+//         }
 
-        // Check if the investment is eligible for selling
-        const currentDate = new Date();
-        if (currentDate < investment.endDate) {
-            return res.status(400).json({ message: 'Investment cannot be sold before maturity' });
-        }
+//         // Check if the investment is eligible for selling
+//         const currentDate = new Date();
+//         if (currentDate < investment.endDate) {
+//             return res.status(400).json({ message: 'Investment cannot be sold before maturity' });
+//         }
 
-        // Calculate the payout amount
-        const payoutAmount = investment.maturityAmount;
+//         // Calculate the payout amount
+//         const payoutAmount = investment.maturityAmount;
 
-        // Update user wallet balance
-        user.walletBalance += payoutAmount;
+//         // Update user wallet balance
+//         user.walletBalance += payoutAmount;
 
-        // Update investment status
-        investment.status = 'completed';
+//         // Update investment status
+//         investment.status = 'completed';
 
-        await investment.save();
-        await user.save();
+//         await investment.save();
+//         await user.save();
 
-        res.status(200).json({ message: 'Investment sold successfully', payoutAmount });
+//         res.status(200).json({ message: 'Investment sold successfully', payoutAmount });
 
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Server error' });
-    }
-});
+//     } catch (error) {
+//         console.error(error);
+//         res.status(500).json({ message: 'Server error' });
+//     }
+// });
 // get all the cateoggies (low risk , high yeild )
 router.get('/categories', async (req, res) => {
   try {
@@ -1119,11 +1120,4 @@ router.get('/support', async (req, res) => {
     return res.status(500).json({ message: 'Internal server error' });
   }
 });
-
 module.exports = router;
-//67e02ee2abbc823b4505e9a7
-//sunidhiratra21@gmail.com:67e01a39035bcb0216d1d471
-
-
-
-// plan id : 67e3bea9c0126dbbfb7b2de9

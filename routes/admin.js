@@ -4,7 +4,6 @@ const express = require('express');
 const nodemailer = require("nodemailer");
 const { uploadToCloudinary } = require("../utils/cloudinary");
 const jwt = require('jsonwebtoken');
-
 const dotenv = require('dotenv');
 const mongoose = require("mongoose");
 const Investment = require('../models/Investment'); 
@@ -880,7 +879,9 @@ router.put('/admin/withdraws/:id', protect, adminOnly, async (req, res) => {
                 return res.status(400).json({ success: false, message: 'User does not have enough balance.' });
             }
 
-            user.walletBalance -= paymentRequest.amount; // Deduct balance
+            // user.walletBalance -= paymentRequest.amount; // Deduct balance
+            user.walletBalance = Number(user.walletBalance) - Number(paymentRequest.amount);
+
             await user.save();
         }
 

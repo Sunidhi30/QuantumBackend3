@@ -42,7 +42,3 @@ app.use(
     })
   );
  
-
-app.listen(PORT,()=>{
-   console.log(`Server started at ${PORT}`)
-})

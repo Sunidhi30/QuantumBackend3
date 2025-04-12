@@ -13,7 +13,7 @@ const planSchema = new mongoose.Schema({
   },
   category: {
     type: String,
-    enum: ['low_risk', 'tax_saving', 'AI_funds', 'high_yield', 'blockchain_funds','SIP'],
+    enum: ['Low_Risk', 'Tax_Saving', 'AI_Funds', 'High_Yield', 'Blockchain_Funds','SIP'],
     required: true
   },
   description: {

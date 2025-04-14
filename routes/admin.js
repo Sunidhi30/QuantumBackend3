@@ -5,6 +5,12 @@ const nodemailer = require("nodemailer");
 const { uploadToCloudinary } = require("../utils/cloudinary");
 const jwt = require('jsonwebtoken');
 const dotenv = require('dotenv');
+const Admin = require("../models/Admin");
+const sessions = new Map();
+function generateSessionId() {
+    return crypto.randomBytes(16).toString('hex');
+  }
+const OTPStore = new Map(); // Temporary store for OTPs
 const mongoose = require("mongoose");
 const Investment = require('../models/Investment'); 
 const User = require('../models/User');
@@ -23,6 +29,8 @@ const multer = require("multer");
 const storage = multer.memoryStorage();
 const Category = require('../models/Category'); // Import Category model
 const PDFDocument = require("pdfkit");
+const crypto= require("crypto")
+const Withdrawal = require('../models/Withdrawal'); // Create this model if not available
 const upload = multer({ storage: storage });
 dotenv.config();
 const router = express.Router();
@@ -33,6 +41,11 @@ const downloadsDir = path.join(__dirname, "../downloads");
 if (!fs.existsSync(downloadsDir)) {
   fs.mkdirSync(downloadsDir, { recursive: true }); // Creates folder if missing
 }
+
+function generateOTP() {
+    return crypto.randomInt(100000, 999999).toString();
+  }
+  
 // Admin Login (Dynamically Generated OTP)
 const transporter = nodemailer.createTransport({ 
     service: 'gmail', // Use your email provider
@@ -57,45 +70,168 @@ const verifyAdmin = (req, res, next) => {
         res.status(400).json({ msg: 'Invalid Token' });
     }
 };  
-router.post('/login', (req, res) => {
+router.post('/admin/register', async (req, res) => {
+    console.log(req.body);
+    try {
+      const { email } = req.body;
   
-    const { email, phone } = req.body;
-
-    if (email !== ADMIN_EMAIL && phone !== ADMIN_PHONE) {
-        return res.status(400).json({ msg: 'Unauthorized access' });
+      if (!email) {
+        return res.status(200).json({ success: false, error: 'Either email or mobile number is required' });
+      }
+  
+      const existingAdmin = await Admin.findOne({
+        $or: [
+          ...(email ? [{ email }] : [])
+        ]
+      });
+  
+      if (existingAdmin) {
+        if (existingAdmin.email === email) {
+          return res.status(200).json({ success: false, error: 'Email already registered' });
+        }
+        // if (existingAdmin.mobileNumber === mobileNumber) {
+        //   return res.status(200).json({ success: false, error: 'Phone number already registered' });
+        // }
+      }
+  
+      const otp = generateOTP();
+      const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+  
+    //   const generateReferralCode = async () => {
+    //     let code;
+    //     let isUnique = false;
+    //     while (!isUnique) {
+    //       code = Math.random().toString(36).substring(2, 10).toUpperCase();
+    //       const existingCode = await Admin.findOne({ referralCode: code });
+    //       if (!existingCode) isUnique = true;
+    //     }
+    //     return code;
+    //   };
+  
+    //   const newReferralCode = await generateReferralCode();
+    
+  
+      const newAdmin = new Admin({
+        email: email || undefined,
+        emailOtp: email ? otp : undefined,
+        emailOtpExpiry: email ? otpExpiry : undefined
+      });
+  
+      const sessionId = generateSessionId();
+      sessions.set(sessionId, { user: newAdmin });
+  
+     
+        console.log("email"+" "+email);
+      if (email) {
+        await transporter.sendMail({
+          from: process.env.EMAIL_USER,
+          to: email,
+          subject: 'Verify your email',
+          text: `Your verification code is: ${otp}. It will expire in 10 minutes.`
+        });
+      }
+  
+    
+      res.status(201).json({
+        message: 'Admin created. Please verify your email or phone number.',
+        sessionId,
+        success: true,
+        nextStep: email ? 'email-verification' : 'phone-verification',
+      
+      });
+  
+    } catch (error) {
+      console.error('Registration error:', error);
+      res.status(200).json({ success: false, error: 'Server error' });
     }
-
-    res.json({ msg: 'OTP sent (0000 for now)', otp: ADMIN_OTP });
-});
-router.post('/verify-login-otp', (req, res) => {
-    const { email, phone, otp } = req.body;
-
-    if (email !== ADMIN_EMAIL || phone !== ADMIN_PHONE || otp !== ADMIN_OTP) {
-        return res.status(400).json({ msg: 'Invalid email/phone or OTP' });
+  });
+router.post('/admin/verify-otp', async (req, res) => {
+    try {
+      const { otp, sessionId } = req.body;
+  
+      if (!otp || !sessionId) {
+        return res.status(400).json({ success: false, error: 'OTP and session ID required' });
+      }
+  
+      const session = sessions.get(sessionId);
+      if (!session) {
+        return res.status(401).json({ success: false, error: 'Invalid or expired session' });
+      }
+  
+      const admin = session.user;
+  
+      if (admin.emailOtp !== otp) {
+        return res.status(400).json({ success: false, error: 'Invalid OTP' });
+      }
+  
+      if (!admin.emailOtpExpiry || new Date() > admin.emailOtpExpiry) {
+        return res.status(400).json({ success: false, error: 'OTP expired' });
+      }
+  
+      admin.isEmailVerified = true;
+  
+      await admin.save();
+  
+      res.json({
+        success: true,
+        message: 'Email verified successfully. You can now proceed with the next step.',
+        nextStep: 'complete-registration'
+      });
+    } catch (error) {
+      console.error('Email verification error:', error);
+      res.status(500).json({ success: false, error: 'Server error' });
     }
-
-    // Generate JWT token with correct email
-    const token = jwt.sign({ adminId: "hardcoded_admin_id", role: 'admin', email }, JWT_SECRET, { expiresIn: '24h' });
-
-    res.json({ msg: 'Admin login successful', token });
-});
-// 3️⃣ **Middleware to Verify Admin Token**
-// // Admin Dashboard Overview
-// router.get('/dashboard', protect, adminOnly, async (req, res) => {
-//     try {
-//         const totalInvestments = await Investment.aggregate([{ $group: { _id: "$planName", total: { $sum: "$amount" } } }]);
-//         const totalUsers = await User.countDocuments({ role: "user" });
-
-//         res.json({ 
-//             message: 'Admin Dashboard', 
-//             totalInvestments, 
-//             totalUsers 
-//         });
-
-//     } catch (error) {
-//         res.status(500).json({ error: error.message });
-//     }
-// });
+  });
+router.post('/admin-login', async (req, res) => {
+    const { email } = req.body;
+    console.log("Searching for admin with:", email);
+  
+    try {
+      let admin = await Admin.findOne({ email });
+  
+      if (!admin)
+        return res.status(200).json({ success: false, msg: 'Admin not found. Please register first.' });
+  
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      OTPStore.set(admin.email, otp);
+  
+      // Send OTP to email
+      await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: email,
+        subject: 'Admin Login OTP Verification',
+        text: `Your OTP code is ${otp}. It will expire in 5 minutes.`
+      });
+  
+      return res.json({ success: true, msg: 'OTP sent to email. Please verify.', email: admin.email });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ success: false, msg: 'Server error' });
+    }
+  });
+router.post('/verify-admin-login-otp', async (req, res) => {
+    const { email, otp } = req.body;
+  
+    if (!OTPStore.has(email) || OTPStore.get(email) !== otp) {
+      return res.status(400).json({ success: false, msg: 'Invalid or expired OTP' });
+    }
+  
+    OTPStore.delete(email);
+  
+    try {
+      let admin = await Admin.findOne({ email });
+  
+      if (!admin)
+        return res.status(400).json({ success: false, msg: 'Admin not found.' });
+  
+      const token = jwt.sign({ adminId: admin._id }, process.env.JWT_SECRET, { expiresIn: '24h' });
+  
+      res.json({ success: true, msg: 'Login successful', token, admin });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ success: false, msg: 'Server error' });
+    }
+  });
 // ✅ Get Investment Stats (Without User Data Exposure)
 router.get('/investment-stats', protect, adminOnly, async (req, res) => {
     try {
@@ -121,40 +257,6 @@ router.get('/withdrawal-stats', protect, adminOnly, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-// router.put('/kyc-approve/:userId', protect, adminOnly, async (req, res) => {
-//     try {
-//         const { status, reason } = req.body;
-
-//         if (!['verified', 'rejected'].includes(status)) {
-//             return res.status(400).json({ message: "Invalid status" });
-//         }
-
-//         const user = await User.findByIdAndUpdate(req.params.userId, { kycStatus: status }, { new: true });
-//         if (!user) return res.status(404).json({ message: "User not found" });
-
-//         // Email content
-//         let subject, text;
-//         if (status === 'verified') {
-//             subject = "KYC Approved ✅";
-//             text = `Dear ${user.email},\n\nYour KYC has been successfully approved! You can now access all platform features.\n\nBest Regards,\nYour Company`;
-//         } else {
-//             subject = "KYC Rejected ❌";
-//             text = `Dear ${user.email},\n\nUnfortunately, your KYC has been rejected for the following reason: ${reason || "Not specified"}.\nPlease re-submit your documents.\n\nBest Regards,\nYour Company`;
-//         }
-
-//         // Send Email Notification
-//         await transporter.sendMail({
-//             from: process.env.EMAIL_USER,
-//             to: user.email,
-//             subject,
-//             text,
-//         });
-
-//         res.json({ success: true, message: `KYC ${status} and email sent` });
-//     } catch (error) {
-//         res.status(500).json({ error: error.message });
-//     }
-// });
 router.put('/approve/:id', protect, async (req, res) => {
 
     try {
@@ -222,7 +324,6 @@ router.post(
           principal,
           keyStrength,
           apy,
-    
           tenureOptions,
           paymentShield,
           minInvestment,
@@ -272,29 +373,6 @@ router.post(
           reward: reward || "No reward",
           dividend: dividend || 0,
         };
-     
-  
-        // const newPlan = new Plan({
-        //   name,
-        //   type,
-        //   category,
-        //   description,
-        //   reasonToInvest,
-        //   principal,
-        //   keyStrength,
-        //   apy,
-        //   tenureOptions,
-        //   paymentShield,
-        //   minInvestment,
-        //   maxInvestment,
-        //   dividend,
-        //   reward,
-        //   paymentOptions,
-        //   riskLevel,
-        //   aboutIssuer,
-        //   dealHighlights: highlights,
-        //   planImages: plansImageUrl, // Store image URLs in the database
-        // });
         const newPlan = new Plan({
             name,
             type,
@@ -330,7 +408,7 @@ router.post(
       }
     }
   );
-  router.get("/download/pdf/:planId", async (req, res) => {
+router.get("/download/pdf/:planId", async (req, res) => {
     try {
       const { planId } = req.params;
       const plan = await Plan.findById(planId);
@@ -455,7 +533,6 @@ router.post(
 //         res.status(500).json({ error: error.message });
 //     }
 // });
-
 router.get('/plans', protect, adminOnly, async (req, res) => {
     try {
         let query = {};
@@ -552,8 +629,6 @@ router.patch('/plans/:id/deactivate', protect, adminOnly, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-// withdraws 
-const Withdrawal = require('../models/Withdrawal'); // Create this model if not available
 router.post('/process-withdrawals', protect, adminOnly, async (req, res) => {
     try {
         // Fetch all pending withdrawals
@@ -629,7 +704,6 @@ router.put("/kyc/:userId", protect, async (req, res) => {
       res.status(500).json({ error: error.message });
     }
   });
- 
 router.get('/transactions', protect, adminOnly, async (req, res) => {
     try {
         let { type, status, sort = '-createdAt' } = req.query;
@@ -1076,8 +1150,7 @@ router.get("/plans/category-count", async (req, res) => {
       console.error("Error fetching category counts:", error);
       res.status(500).json({ error: "Server error" });
     }
-  });
-  
+  }); 
 module.exports = router;
 // admin token : 
 // eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZG1pbklkIjoiaGFyZGNvZGVkX2FkbWluX2lkIiwicm9sZSI6ImFkbWluIiwiZW1haWwiOiJzdW5pZGhpQGdtYWlsLmNvbSIsImlhdCI6MTc0MzA3NjYzNCwiZXhwIjoxNzQzMTYzMDM0fQ.N7FO_29SMbQgdSU7Ac9VukR6p5tTT9fGPAjLQM9ooq4

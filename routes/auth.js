@@ -175,7 +175,7 @@ router.post('/register', async (req, res) => {
     // await newUser.save();
 
     const sessionId = generateSessionId();
-    sessions.set(sessionId, { user : newUser });
+    sessions.set(sessionId, { user: newUser }); // ✅ Already correct
 
     console.log(newUser);
 
@@ -197,8 +197,7 @@ router.post('/register', async (req, res) => {
       });
     }
     
-    // const sessionId = generateSessionId();
-    // sessions.set(sessionId, { userId: newUser._id });
+
 
     // Here you would integrate an SMS API to send the OTP to mobileNumber if provided
     if (mobileNumber) {
@@ -234,7 +233,8 @@ router.post('/verify-otp', async (req, res) => {
     }
     
     // Get user
-    const user = await User.findById(session.userId);
+    let user = session.user; // ✅ Get user from session
+
     if (!user) {
       return res.status(404).json({ success: false, error: 'User not found' });
     }

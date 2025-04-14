@@ -83,38 +83,6 @@ router.get('/plans', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-  //plans by cateogry : high_yeild,sip 
-// router.get('/plans/category/:category', async (req, res) => {
-//     try {
-//         const category = req.params.category.toLowerCase(); // ✅ Convert to lowercase
-
-//         const plans = await Plan.find({ category });
-
-//         if (plans.length === 0) {
-//             return res.status(404).json({ success: false, msg: 'No plans found for this category' });
-//         }
-
-//         res.json({ success: true, msg: 'Plans retrieved successfully', plans });
-
-//     } catch (error) {
-//         res.status(500).json({ success: false, error: error.message });
-//     }
-// });
-// router.get('/plans/category/:category', async (req, res) => {
-//     try {
-//         const category = req.params.category;
-//         const plans = await Plan.find({ category: new RegExp(`^${category}$`, 'i') });
-
-//         if (plans.length === 0) {
-//             return res.status(404).json({ success: false, msg: 'No plans found for this category' });
-//         }
-
-//         res.json({ success: true, msg: 'Plans retrieved successfully', plans });
-
-//     } catch (error) {
-//         res.status(500).json({ success: false, error: error.message });
-//     }
-// });
 router.get('/plans/category/:category', async (req, res) => {
   try {
       const category = req.params.category;
@@ -735,6 +703,7 @@ router.post('/upload-query', protect , async (req, res) => {
       res.status(500).json({ message: 'Server error', error: error.message });
     }
   });  
+  // request to  have money in users account
 router.post('/request', protect, async (req, res) => {
   try {
     const { bankName, amount, transactionId } = req.body;
@@ -766,6 +735,13 @@ router.post('/request', protect, async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'User not found'
+      });
+    }
+     // 🔒 KYC STATUS CHECK
+     if (user.kycStatus !== 'verified') {
+      return res.status(403).json({
+        success: false,
+        message: 'KYC not verified. You cannot perform this action until your KYC is approved.'
       });
     }
     const isCredited = amount > 0; // If amount is positive, it is credited, otherwise debited

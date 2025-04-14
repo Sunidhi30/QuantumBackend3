@@ -29,88 +29,6 @@ function generateOTP() {
   return crypto.randomInt(100000, 999999).toString();
 }
 
-
-// below one was working fine but without referal code 
-// router.post('/register', async (req, res) => {
-//   console.log(req.body);
-//   try {
-//     const { email, mobileNumber } = req.body;
-
-//     // Ensure at least one is provided
-//     if (!email && !mobileNumber) {
-//       return res.status(200).json({ success: false, error: 'Either email or mobile number is required' });
-//     }
-
-//     // Check if user already exists
-//     const existingUser = await User.findOne({
-//       $or: [
-//         ...(email ? [{ email }] : []),
-//         ...(mobileNumber ? [{ mobileNumber }] : [])
-//       ]
-//     });
-
-//     if (existingUser) {
-//       if (existingUser.email === email) {
-//         return res.status(200).json({ success: false, error: 'Email already registered' });
-//       }
-//       if (existingUser.mobileNumber === mobileNumber) {
-//         return res.status(200).json({ success: false, error: 'Phone number already registered' });
-//       }
-//     }
-
-//     // Generate OTP (for email or mobile)
-//     const otp = generateOTP();
-//     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes expiry
-
-//     const newUser = new User({
-//       email: email || undefined,
-//       mobileNumber: mobileNumber || undefined,
-//       emailOtp: email ? otp : undefined,
-//       emailOtpExpiry: email ? otpExpiry : undefined,
-//       phonePin: mobileNumber ? otp : undefined,
-//       phonePinExpiry: mobileNumber ? otpExpiry : undefined
-//     });
-
-//     // await newUser.save();
-
-//     const sessionId = generateSessionId();
-//     sessions.set(sessionId, { user : newUser });
-
-//     console.log(newUser);
-
-//     // Send OTP to email if provided
-//     if (email) {
-//       await transporter.sendMail({
-//         from: process.env.EMAIL_USER,
-        
-//         to: email,
-//         subject: 'Verify your email',
-//         text: `Your verification code is: ${otp}. It will expire in 10 minutes.`
-//       });
-//     }
-    
-//     // const sessionId = generateSessionId();
-//     // sessions.set(sessionId, { userId: newUser._id });
-
-//     // Here you would integrate an SMS API to send the OTP to mobileNumber if provided
-//     if (mobileNumber) {
-//       console.log(`Send OTP ${otp} to mobile: ${mobileNumber}`);
-//       // Example: await smsService.sendOTP(mobileNumber, otp);
-//     }
-
-//     res.status(201).json({
-//       message: 'User created. Please verify your email or phone number.',
-//       sessionId,
-//       success: true,
-//       nextStep: email ? 'email-verification' : 'phone-verification'
-//     });
-
-//   } catch (error) {
-//     console.error('Registration error:', error);
-//     res.status(200).json({ success: false, error: 'Server error' });
-//   }
-// });
-
 router.post('/register', async (req, res) => {
   console.log(req.body);
   try {
@@ -264,71 +182,58 @@ router.post('/verify-otp', async (req, res) => {
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
-
-// 3️⃣ **Login API (Using Email or Mobile Number & OTP)**
-router.post('/login', [
-  // check('login', 'Email or Mobile Number is required').not().isEmpty()
-], async (req, res) => {
-  const { email} = req.body;
+// User Login - Send OTP
+router.post('/user-login', async (req, res) => {
+  const { email } = req.body;
   console.log("Searching for user with:", email);
-  // yeh hi email : undefined ara h 
+
   try {
-      let user = await User.findOne({
-            email: email 
-      });
+    let user = await User.findOne({ email });
 
-      if (!user)       return res.status(200).json({ success: false, msg: 'User not found. Please register first.' });
+    if (!user)
+      return res.status(200).json({ success: false, msg: 'User not found. Please register first.' });
 
-      
-      
-      const otp = Math.floor(100000 + Math.random() * 900000).toString();
-      OTPStore.set(user.email, otp); // Store OTP temporarily noo
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    OTPStore.set(user.email, otp);
 
-      // Send OTP to email
-      await transporter.sendMail({
-          from: process.env.EMAIL_USER,
-          to: email,
-          subject: 'Login OTP Verification',
-          text: `Your OTP code is ${otp}. It will expire in 5 minutes.`
-      });
+    // Send OTP to user's email
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: 'User Login OTP Verification',
+      text: `Your OTP code is ${otp}. It will expire in 5 minutes.`
+    });
 
-      return res.json({ success: true, msg: 'OTP sent to email. Please verify.', email: user.email });
-    } catch (err) {
-      console.error(err);
-      // res.status(500).json({ msg: 'Server error' });
-      return res.status(500).json({ success: false, msg: 'Server error' });
-
+    return res.json({ success: true, msg: 'OTP sent to email. Please verify.', email: user.email });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ success: false, msg: 'Server error' });
   }
 });
-
-// 4️⃣ **Verify OTP & Login**
-router.post('/verify-login-otp', [
-  // check('email', 'Email is required').isEmail(),
-  check('otp', 'OTP is required').not().isEmpty()
-], async (req, res) => {
+// User OTP Verification
+router.post('/verify-user-login-otp', async (req, res) => {
   const { email, otp } = req.body;
 
   if (!OTPStore.has(email) || OTPStore.get(email) !== otp) {
     return res.status(400).json({ success: false, msg: 'Invalid or expired OTP' });
   }
 
-  OTPStore.delete(email); // Remove OTP after verification
+  OTPStore.delete(email);
 
   try {
-      let user = await User.findOne({ email });
-      if (!user)       return res.status(400).json({ success: false, msg: 'User not found.' });
+    let user = await User.findOne({ email });
 
+    if (!user)
+      return res.status(400).json({ success: false, msg: 'User not found.' });
 
-      // Generate JWT token
-      const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '24h' });
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '24h' });
 
     res.json({ success: true, msg: 'Login successful', token, user });
   } catch (err) {
-      console.error(err);
-      res.status(500).json({ success: false, msg: 'Server error' });
-    }
+    console.error(err);
+    res.status(500).json({ success: false, msg: 'Server error' });
+  }
 });
-
 router.get('/home', async (req, res) => {
   const token = req.headers['authorization']; // Get token from request headers
 
@@ -367,7 +272,6 @@ const authenticateAdmin = (req, res, next) => {
       return res.status(401).json({ msg: 'Invalid or expired token' });
   }
 };
-
 // Example: Protecting an admin-only route
 router.get('/admin/dashboard', authenticateAdmin, (req, res) => {
   res.json({ msg: 'Welcome, Admin!', admin: req.admin });

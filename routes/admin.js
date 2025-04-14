@@ -821,7 +821,7 @@ router.delete('/delete/:id',protect, async (req, res) => {
     }
   });
 // admin quiz 
-router.post('/add', protect, async (req, res) => {
+router.post('/add-quiz', protect, async (req, res) => {
     try {
       const { question, options, correctAnswer } = req.body;
       const adminId = req.user._id; // Get admin ID from token
@@ -845,17 +845,56 @@ router.post('/add', protect, async (req, res) => {
     }
   });
 // aprrove the transaction request 
+// router.post('/approve/:id', protect, async (req, res) => {
+//     try {
+//       const requestId = req.params.id;
+  
+//       const paymentRequest = await PaymentRequest.findById(requestId);
+//       if (!paymentRequest) {
+//         return res.status(404).json({ success: false, message: 'Payment request not found' });
+//       }
+  
+//       if (paymentRequest.status === 'approved') {
+//         return res.status(400).json({ success: false, message: 'Request already approved' });
+//       }
+  
+//       const user = await User.findById(paymentRequest.user);
+//       if (!user) {
+//         return res.status(404).json({ success: false, message: 'User not found' });
+//       }
+  
+//       // Update user's wallet balance
+//       user.walletBalance = Number(user.walletBalance) + Number(paymentRequest.amount);
+//       await user.save();
+  
+//       // Update payment request status
+//       paymentRequest.status = 'approved';
+//       paymentRequest.wallet = user.walletBalance; // updated balance
+//       await paymentRequest.save();
+  
+//       res.status(200).json({ success: true, message: 'Request approved and wallet updated.' });
+  
+//     } catch (error) {
+//       console.error('Error approving payment request:', error);
+//       res.status(500).json({ success: false, message: 'Server error', error: error.message });
+//     }
+//   });
 router.post('/approve/:id', protect, async (req, res) => {
     try {
       const requestId = req.params.id;
+      const { status } = req.body; // 'approved' or 'rejected'
+  
+      if (!['approved', 'rejected'].includes(status)) {
+        return res.status(400).json({ success: false, message: 'Invalid status. Use "approved" or "rejected".' });
+      }
   
       const paymentRequest = await PaymentRequest.findById(requestId);
       if (!paymentRequest) {
         return res.status(404).json({ success: false, message: 'Payment request not found' });
       }
   
-      if (paymentRequest.status === 'approved') {
-        return res.status(400).json({ success: false, message: 'Request already approved' });
+      if (paymentRequest.status === 'approved' || paymentRequest.status === 'rejected') {
+        return res.status(400).json({ success: false, message: `Request already ${paymentRequest.status}` });
       }
   
       const user = await User.findById(paymentRequest.user);
@@ -863,19 +902,27 @@ router.post('/approve/:id', protect, async (req, res) => {
         return res.status(404).json({ success: false, message: 'User not found' });
       }
   
-      // Update user's wallet balance
-      user.walletBalance = Number(user.walletBalance) + Number(paymentRequest.amount);
-      await user.save();
+      if (status === 'approved') {
+        // Update user's wallet balance
+        user.walletBalance = Number(user.walletBalance) + Number(paymentRequest.amount);
+        await user.save();
   
-      // Update payment request status
-      paymentRequest.status = 'approved';
-      paymentRequest.wallet = user.walletBalance; // updated balance
+        // Update payment request status and wallet balance
+        paymentRequest.wallet = user.walletBalance;
+      }
+  
+      paymentRequest.status = status;
       await paymentRequest.save();
   
-      res.status(200).json({ success: true, message: 'Request approved and wallet updated.' });
+      res.status(200).json({
+        success: true,
+        message: `Request ${status} successfully.`,
+        updatedBalance: user.walletBalance,
+        request: paymentRequest
+      });
   
     } catch (error) {
-      console.error('Error approving payment request:', error);
+      console.error('Error processing payment request:', error);
       res.status(500).json({ success: false, message: 'Server error', error: error.message });
     }
   });

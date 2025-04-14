@@ -56,7 +56,7 @@ const verifyAdmin = (req, res, next) => {
     } catch (err) {
         res.status(400).json({ msg: 'Invalid Token' });
     }
-};
+};  
 router.post('/login', (req, res) => {
   
     const { email, phone } = req.body;
@@ -746,7 +746,7 @@ router.delete('/delete/:id',protect, async (req, res) => {
       res.status(500).json({ message: "Server Error", error });
     }
   });
-  // admin quiz 
+// admin quiz 
 router.post('/add', protect, async (req, res) => {
     try {
       const { question, options, correctAnswer } = req.body;
@@ -770,77 +770,41 @@ router.post('/add', protect, async (req, res) => {
       res.status(500).json({ message: 'Server error', error: error.message });
     }
   });
-router.put('/admin/approve/:id', protect, adminOnly, async (req, res) => {
+// aprrove the transaction request 
+router.post('/approve/:id', protect, async (req, res) => {
     try {
-        const { status, adminNotes } = req.body;
-
-        // Validate status
-        if (!['approved', 'rejected'].includes(status)) {
-            return res.status(400).json({ success: false, message: 'Invalid status. Use "approved" or "rejected".' });
-        }
-
-        // Find payment request
-        const paymentRequest = await PaymentRequest.findById(req.params.id).populate('user', 'email username walletBalance');
-        if (!paymentRequest) {
-            return res.status(404).json({ success: false, message: 'Payment request not found' });
-        }
-
-        // Prevent duplicate approval/rejection
-        if (paymentRequest.status === 'approved' || paymentRequest.status === 'rejected') {
-            return res.status(400).json({ success: false, message: `This request is already ${paymentRequest.status}` });
-        }
-
-        const user = paymentRequest.user;
-
-        // If rejected, ensure a reason is provided
-        if (status === 'rejected' && !adminNotes) {
-            return res.status(400).json({ success: false, message: 'Rejection reason is required.' });
-        }
-
-        // If approved, add the amount to the user's wallet
-        if (status === 'approved') {
-            user.walletBalance += paymentRequest.amount;
-            await user.save();
-        }
-
-        // Update payment request status
-        paymentRequest.status = status;
-        paymentRequest.adminNotes = adminNotes || '';
-        paymentRequest.adminId = req.user._id;
-        await paymentRequest.save();
-
-        // Send email notification
-        const mailOptions = {
-            from: process.env.EMAIL_USER,
-            to: user.email,
-            subject: `Payment Request ${status === 'approved' ? 'Approved' : 'Rejected'}`,
-            html: `
-                <h2>Payment Request ${status === 'approved' ? 'Approved' : 'Rejected'}</h2>
-                <p>Dear ${user.username},</p>
-                <p>Your payment request has been <strong>${status}</strong>.</p>
-                <ul>
-                    <li><strong>Transaction ID:</strong> ${paymentRequest.transactionId}</li>
-                    <li><strong>Amount:</strong> ₹${paymentRequest.amount}</li>
-                    <li><strong>Bank Name:</strong> ${paymentRequest.bankName}</li>
-                    ${status === 'rejected' ? `<li><strong>Rejection Reason:</strong> ${adminNotes}</li>` : ''}
-                </ul>
-                <p>${status === 'approved' ? 'Your wallet has been credited successfully.' : 'Please review the reason and try again.'}</p>
-            `
-        };
-
-        await transporter.sendMail(mailOptions);
-
-        res.status(200).json({
-            success: true,
-            message: `Payment request ${status} successfully.`,
-            data: paymentRequest
-        });
-
+      const requestId = req.params.id;
+  
+      const paymentRequest = await PaymentRequest.findById(requestId);
+      if (!paymentRequest) {
+        return res.status(404).json({ success: false, message: 'Payment request not found' });
+      }
+  
+      if (paymentRequest.status === 'approved') {
+        return res.status(400).json({ success: false, message: 'Request already approved' });
+      }
+  
+      const user = await User.findById(paymentRequest.user);
+      if (!user) {
+        return res.status(404).json({ success: false, message: 'User not found' });
+      }
+  
+      // Update user's wallet balance
+      user.walletBalance = Number(user.walletBalance) + Number(paymentRequest.amount);
+      await user.save();
+  
+      // Update payment request status
+      paymentRequest.status = 'approved';
+      paymentRequest.wallet = user.walletBalance; // updated balance
+      await paymentRequest.save();
+  
+      res.status(200).json({ success: true, message: 'Request approved and wallet updated.' });
+  
     } catch (error) {
-        console.error('Error updating payment request:', error);
-        res.status(500).json({ success: false, message: 'Error updating payment request', error: error.message });
+      console.error('Error approving payment request:', error);
+      res.status(500).json({ success: false, message: 'Server error', error: error.message });
     }
-});
+  });
 router.get('/withdrawals',protect,async (req, res) => {
     try {
         const withdrawals = await PaymentRequest.find().populate('user', 'username email');

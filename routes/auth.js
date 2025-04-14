@@ -219,58 +219,6 @@ router.post('/register', async (req, res) => {
     res.status(200).json({ success: false, error: 'Server error' });
   }
 });
-
-
-router.post('/verify-otp', async (req, res) => {
-  try {
-    const { otp, sessionId } = req.body;
-    
-    if (!otp || !sessionId) {
-      return res.status(200).json({success : true , error: 'OTP and session ID required' });
-    }
-    
-    // Validate session
-    const session = sessions.get(sessionId);
-    if (!session) {
-      return res.status(200).json({  success : true , error: 'Invalid or expired session' });
-    }
-    
-    // Get user
-    const user =  session.user;
-  
-    console.log(user);
-    if (!user) {
-      return res.status(200).json({success : true, error: 'User not found' });
-    }
-
-    
-    // Check if OTP is correct and not expired
-    if (user.emailOtp !== otp) {
-      return res.status(200).json({ success : true, error: 'Invalid OTP' });
-    }
-    
-    if (!user.emailOtpExpiry || new Date() > user.emailOtpExpiry) {
-      return res.status(200).json({ success : true , error: 'OTP expired' });
-    }
-    
-    // Mark email as verified
-    user.isEmailVerified = true;
-    
-    await user.save();
-    //done 
-    
-    res.json({ 
-      success: true,
-      message: 'Email verified successfully. You can now proceed with the next step.',
-      nextStep: 'complete-registration' 
-    });
-  } catch (error) {
-    console.error('Email verification error:', error);
-    res.status(500).json({ success : false, error: 'Server error' });
-  }
-});
-
-
 router.post('/verify-otp', async (req, res) => {
   try {
     const { otp, sessionId } = req.body;

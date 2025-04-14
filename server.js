@@ -18,7 +18,7 @@ app.use(express.json());
 require('dotenv').config()
 db();
 app.use(cors());
-const PORT = process.env.PORT || 9000;
+const PORT = process.env.PORT || 6000;
 app.get("/", (req, res) => {
     res.sendFile(__dirname + "/testing.html");
 })
@@ -41,4 +41,7 @@ app.use(
       saveUninitialized: false,
     })
   );
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
  

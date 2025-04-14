@@ -40,7 +40,12 @@ const paymentRequestSchema = new mongoose.Schema({
     type: Number,
     default: 0,  // Wallet balance starts at 0
     min: 0
+  },
+  isCredited: { // This will now be a boolean field
+    type: Boolean,
+    required: true
   }
+
 }, {
   timestamps: true
 });

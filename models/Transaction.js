@@ -44,6 +44,10 @@ const transactionSchema = new mongoose.Schema({
     cryptoTransactionHash: String,
     receiptImage: String
   },
+  walletEffect: { // This will now be a boolean field
+    type: Boolean,
+    required: true
+  },
   remarks: {
     type: String
   },

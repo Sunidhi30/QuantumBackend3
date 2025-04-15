@@ -27,7 +27,20 @@ const transporter = nodemailer.createTransport({
       pass: process.env.EMAIL_PASS // Admin email password (use env variables for security)
     }
   });
+  router.get('/profile', protect, async (req, res) => {
+    try {
+      const user = await User.findById(req.user.id).select('-password'); // Exclude password
   
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+  
+      res.json({ user });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  });
 // update the users profile
 router.put('/update-profile', protect, [
  

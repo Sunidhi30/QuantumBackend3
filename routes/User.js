@@ -27,7 +27,7 @@ const transporter = nodemailer.createTransport({
       pass: process.env.EMAIL_PASS // Admin email password (use env variables for security)
     }
   });
-  router.get('/profile', protect, async (req, res) => {
+router.get('/user-profile', protect, async (req, res) => {
     try {
       const user = await User.findById(req.user.id).select('-password'); // Exclude password
   
@@ -42,37 +42,91 @@ const transporter = nodemailer.createTransport({
     }
   });
 // update the users profile
-router.put('/update-profile', protect, [
+// router.put('/update-profile', protect, [
  
-  body('mobileNumber').optional().isMobilePhone(),
-  body('email').optional().isEmail().normalizeEmail()
-], async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
+//   body('mobileNumber').optional().isMobilePhone(),
+//   body('email').optional().isEmail().normalizeEmail()
+// ], async (req, res) => {
+//   try {
+//     const errors = validationResult(req);
+//     if (!errors.isEmpty()) {
+//       return res.status(400).json({ errors: errors.array() });
+//     }
 
-    const { mobileNumber, email} = req.body;
-    const updateFields = {};
+//     const { mobileNumber, email} = req.body;
+//     const updateFields = {};
 
     
-    if (mobileNumber) updateFields.mobileNumber = mobileNumber;
-    if (email) updateFields.email = email;
+//     if (mobileNumber) updateFields.mobileNumber = mobileNumber;
+//     if (email) updateFields.email = email;
    
 
-    const updatedUser = await User.findByIdAndUpdate(req.user.id, updateFields, { new: true });
+//     const updatedUser = await User.findByIdAndUpdate(req.user.id, updateFields, { new: true });
 
-    if (!updatedUser) {
-      return res.status(404).json({ message: 'User not found' });
+//     if (!updatedUser) {
+//       return res.status(404).json({ message: 'User not found' });
+//     }
+
+//     res.json({ message: 'Profile updated successfully', user: updatedUser });
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).json({ message: 'Server error' });
+//   }
+// });
+// PUT: Update profile with optional image upload
+
+router.put(
+  '/update-profile',
+  protect,
+  upload.single('image'),
+  [
+    body('mobileNumber').optional().isMobilePhone(),
+    body('email').optional().isEmail().normalizeEmail()
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const { mobileNumber, email } = req.body;
+      const updateFields = {};
+
+      if (mobileNumber) updateFields.mobileNumber = mobileNumber;
+      if (email) updateFields.email = email;
+
+      // ✅ Upload image if available
+      if (req.file) {
+        const imageUrl = await uploadToCloudinary(
+          req.file.buffer,
+          'user_profiles',
+          req.file.mimetype
+        );
+        updateFields.image = imageUrl;
+      }
+
+      const updatedUser = await User.findByIdAndUpdate(
+        req.user.id,
+        updateFields,
+        { new: true }
+      );
+
+      if (!updatedUser) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      res.json({
+        message: 'Profile updated successfully',
+        user: updatedUser,
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: 'Server error', error: error.message });
     }
-
-    res.json({ message: 'Profile updated successfully', user: updatedUser });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error' });
   }
-});
+);
+
 //All the invested plans 
 router.get('/plans', async (req, res) => {
     try {

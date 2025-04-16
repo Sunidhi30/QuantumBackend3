@@ -4,6 +4,7 @@ const Plan = require("../models/Plan"); // Import Plan model
 const { protect } = require("../middlewares/authMiddlewares"); // Only authentication required
 const User = require("../models/User"); // Ensure correct path
 const { uploadToCloudinary } = require("../utils/cloudinary");
+const {uploadsCloudinary}= require("../utils/cloudinary");
 const multer = require("multer");
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
@@ -78,9 +79,9 @@ router.get('/user-profile', protect, async (req, res) => {
 router.put(
   '/update-profile',
   protect,
-  upload.single('image'),
+  upload.single('profilePicture'),
   [
-    body('mobileNumber').optional().isMobilePhone(),
+    
     body('email').optional().isEmail().normalizeEmail()
   ],
   async (req, res) => {
@@ -90,10 +91,9 @@ router.put(
         return res.status(400).json({ errors: errors.array() });
       }
 
-      const { mobileNumber, email } = req.body;
+      const { email } = req.body;
       const updateFields = {};
 
-      if (mobileNumber) updateFields.mobileNumber = mobileNumber;
       if (email) updateFields.email = email;
 
       // ✅ Upload image if available
@@ -103,7 +103,8 @@ router.put(
           'user_profiles',
           req.file.mimetype
         );
-        updateFields.image = imageUrl;
+        updateFields.profilePicture = imageUrl; // This matches your schema field
+
       }
 
       const updatedUser = await User.findByIdAndUpdate(
@@ -276,6 +277,66 @@ router.get('/plans/filter', protect, async (req, res) => {
     }
 });
 //kycs of the users 
+// router.post(
+//   "/kyc",
+//   protect,
+//   upload.fields([{ name: "idProof", maxCount: 1 }]), // Aadhaar or Passport
+//   async (req, res) => {
+//     try {
+//       const user = await User.findById(req.user.id);
+//       if (!user) return res.status(404).json({ message: "User not found" });
+
+//       const { nationality, idNumber } = req.body;
+//       if (!nationality || !idNumber) {
+//         return res.status(400).json({ message: "Nationality and ID number are required" });
+//       }
+
+//       if (!req.files || !req.files.idProof) {
+//         return res.status(400).json({ message: "ID Proof document is required" });
+//       }
+
+//       if (nationality === "Indian") {
+//         if (!/^\d{12}$/.test(idNumber)) {
+//           return res.status(400).json({ message: "Aadhaar number must be 12 digits" });
+//         }
+//       } else {
+//         if (!/^[A-Z0-9]+$/.test(idNumber)) {
+//           return res.status(400).json({ message: "Invalid passport number format" });
+//         }
+//       }
+
+//       // Upload ID Proof to Cloudinary
+//       const idProofUrl = await uploadsCloudinary(
+//         req.files.idProof[0].buffer,
+//         "kyc_docs",
+//         req.files.idProof[0].mimetype
+//       );
+
+//       // Ensure kycDocuments exists and update it
+//       if (!user.kycDocuments) {
+//         user.kycDocuments = {};
+//       }
+//       user.kycDocuments.idProof = idProofUrl;
+//       user.kycDocuments.idNumber = Number(idNumber); // Convert to Number to match schema
+
+//       console.log("Before saving:", user.kycDocuments);
+//       user.kycStatus = "pending";
+//       await user.save();
+//       console.log("After saving:", user.kycDocuments);
+//      console.log("", user.kycDocuments )
+//       res.status(200).json({
+//         userId: req.user.id,
+//         success: true,
+//         message: "KYC submitted successfully. Waiting for admin approval.",
+//         idproof : user.kycDocuments.idProof,
+//         // urls: user.kycDocuments,
+//       });
+//     } catch (error) {
+//       console.error("KYC Upload Error:", error);
+//       res.status(500).json({ error: error.message });
+//     }
+//   }
+// );
 router.post(
   "/kyc",
   protect,
@@ -304,11 +365,12 @@ router.post(
         }
       }
 
-      // Upload ID Proof to Cloudinary
+      // Upload ID Proof to Cloudinary - now with the forDisplay parameter set to true
       const idProofUrl = await uploadToCloudinary(
         req.files.idProof[0].buffer,
         "kyc_docs",
-        req.files.idProof[0].mimetype
+        req.files.idProof[0].mimetype,
+        true // Set to true to display in browser instead of downloading
       );
 
       // Ensure kycDocuments exists and update it
@@ -322,12 +384,13 @@ router.post(
       user.kycStatus = "pending";
       await user.save();
       console.log("After saving:", user.kycDocuments);
-     console.log("", user.kycDocuments )
+      console.log("", user.kycDocuments )
+      
       res.status(200).json({
         userId: req.user.id,
         success: true,
         message: "KYC submitted successfully. Waiting for admin approval.",
-          idproo : user.kycDocuments.idProof,
+        idproof: user.kycDocuments.idProof,
         // urls: user.kycDocuments,
       });
     } catch (error) {

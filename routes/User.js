@@ -104,9 +104,7 @@ router.put(
           req.file.mimetype
         );
         updateFields.profilePicture = imageUrl; // This matches your schema field
-
       }
-
       const updatedUser = await User.findByIdAndUpdate(
         req.user.id,
         updateFields,
@@ -755,23 +753,44 @@ router.get("/faq", async (req, res) => {
     }
 });
 // rewards users can see 
-router.get('rewards', async (req, res) => {
-    try {
-        const { userId } = req.params;
-        const user = await User.findById(userId);
+// router.get('rewards', async (req, res) => {
+//     try {
+//         const { userId } = req.params;
+//         const user = await User.findById(userId);
         
-        if (!user) {
-            return res.status(404).json({ message: 'User not found' });
-        }
+//         if (!user) {
+//             return res.status(404).json({ message: 'User not found' });
+//         }
 
-        const totalInvestment = user.totalInvestment;
-        const eligibleRewards = await Reward.find({ amountRequired: { $lte: totalInvestment } });
+//         const totalInvestment = user.totalInvestment;
+//         const eligibleRewards = await Reward.find({ amountRequired: { $lte: totalInvestment } });
 
-        res.status(200).json({ totalInvestment, eligibleRewards });
-    } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
-    }
+//         res.status(200).json({ totalInvestment, eligibleRewards });
+//     } catch (error) {
+//         res.status(500).json({ message: 'Server error', error: error.message });
+//     }
+router.get('/rewards/:userId', async (req, res) => {
+  try {
+      const { userId } = req.params;
+      const user = await User.findById(userId);
+      
+      if (!user) {
+          return res.status(404).json({ message: 'User not found' });
+      }
+
+      // Use wallet balance instead of total investment
+      const walletBalance = user.walletBalance;
+
+      const eligibleRewards = await Reward.find({
+          amountRequired: { $lte: walletBalance }
+      });
+
+      res.status(200).json({ walletBalance, eligibleRewards });
+  } catch (error) {
+      res.status(500).json({ message: 'Server error', error: error.message });
+  }
 });
+// });
 //upload the query to the admin
 router.post('/upload-query', protect , async (req, res) => {
   try {

@@ -16,7 +16,6 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
 require('dotenv').config()
-db();
 app.use(cors());
 const PORT = process.env.PORT || 6000;
 app.get("/", (req, res) => {
@@ -30,7 +29,6 @@ app.use("/api/users",Users)
 app.get('/session', (req, res) => {
     res.json({ sessionId: req.sessionID });
 });
-
 db().then(function (db) {
     console.log(`Db connnected`)
 })
@@ -44,4 +42,3 @@ app.use(
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
   });
- 

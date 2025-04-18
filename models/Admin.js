@@ -15,7 +15,7 @@ const AdminSchema = new mongoose.Schema({
     default: 'admin'
   },
   image: {
-    type: String // URL to profile image if needed
+    type: String 
   },
   emailOtp: {
     type: String

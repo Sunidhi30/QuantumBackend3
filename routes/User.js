@@ -448,11 +448,16 @@ router.post("/investments/create", protect, async (req, res) => {
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found" });
     }
-
+       // ✅ KYC approval check
+       if (!user.kycApproved) {
+        return res.status(403).json({ success: false, message: "KYC not approved. You cannot invest until your KYC is approved by admin." });
+      }
+  
+  
     // Check if user has enough wallet balance
-    // if (user.walletBalance < investmentAmount) {
-    //   return res.status(400).json({ success: false, message: "Insufficient wallet balance" });
-    // }
+    if (user.walletBalance < investmentAmount) {
+      return res.status(400).json({ success: false, message: "Insufficient wallet balance" });
+    }
 
     // Calculate maturity date based on tenure
     const tenureInMonths = parseInt(plan.tenureOptions[plan.tenureOptions.length - 1]); // Get last tenure option
@@ -505,11 +510,11 @@ const totalInvestments = userInvestments.reduce((sum, inv) => sum + inv.maturity
 
     res.status(200).json({ 
       success: true, 
-      // message: "Investment successful!", 
-      // totalInvestments,
-      // currentInvested: investmentAmount,
-      // totalReturns,
-      // investment: newInvestment
+      message: "Investment successful!", 
+      totalInvestments,
+      currentInvested: investmentAmount,
+      totalReturns,
+      investment: newInvestment,
       newInvestment
     });
 
@@ -571,7 +576,7 @@ router.get("/user/investments", protect, async (req, res) => {
         const investments = await Investment.find({ user: userId });
 
         if (!investments.length) {
-            return res.status(404).json({ success: false, message: "No investments found." });
+            return res.status(200).json({ success: false, message: "No investments found." });
         }
 
         let totalInvestments = 0;

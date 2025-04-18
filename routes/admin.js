@@ -41,11 +41,9 @@ const downloadsDir = path.join(__dirname, "../downloads");
 if (!fs.existsSync(downloadsDir)) {
   fs.mkdirSync(downloadsDir, { recursive: true }); // Creates folder if missing
 }
-
 function generateOTP() {
     return crypto.randomInt(100000, 999999).toString();
   }
-  
 // Admin Login (Dynamically Generated OTP)
 const transporter = nodemailer.createTransport({ 
     service: 'gmail', // Use your email provider
@@ -1199,5 +1197,3 @@ router.get("/plans/category-count", async (req, res) => {
     }
   }); 
 module.exports = router;
-// admin token : 
-// eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZG1pbklkIjoiaGFyZGNvZGVkX2FkbWluX2lkIiwicm9sZSI6ImFkbWluIiwiZW1haWwiOiJzdW5pZGhpQGdtYWlsLmNvbSIsImlhdCI6MTc0MzA3NjYzNCwiZXhwIjoxNzQzMTYzMDM0fQ.N7FO_29SMbQgdSU7Ac9VukR6p5tTT9fGPAjLQM9ooq4

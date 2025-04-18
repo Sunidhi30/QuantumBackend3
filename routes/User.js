@@ -449,7 +449,7 @@ router.post("/investments/create", protect, async (req, res) => {
       return res.status(404).json({ success: false, message: "User not found" });
     }
        // ✅ KYC approval check
-       if (!user.kycApproved) {
+       if (!user.kycStats=='verified') {
         return res.status(403).json({ success: false, message: "KYC not approved. You cannot invest until your KYC is approved by admin." });
       }
   
@@ -502,10 +502,11 @@ const totalInvestments = userInvestments.reduce((sum, inv) => sum + inv.maturity
     });
 
     await newInvestment.save();
-
+    console.log("wallet"+" "+user.walletBalance);
     // Deduct from user's wallet
-    user.walletBalance -= investmentAmount;
-    user.totalInvestment += investmentAmount;
+    user.walletBalance = Number(user.walletBalance) - Number(investmentAmount);
+    console.log("wallet balance", user.walletBalance)
+    user.totalInvestment = Number(user.totalInvestment) - Number(investmentAmount);
     await user.save();
 
     res.status(200).json({ 
@@ -514,6 +515,7 @@ const totalInvestments = userInvestments.reduce((sum, inv) => sum + inv.maturity
       totalInvestments,
       currentInvested: investmentAmount,
       totalReturns,
+    
       investment: newInvestment,
       newInvestment
     });
@@ -523,6 +525,43 @@ const totalInvestments = userInvestments.reduce((sum, inv) => sum + inv.maturity
     res.status(500).json({ success: false, error: error.message });
   }
 });
+router.get("/investments/stats", protect, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    // Fetch all investments for the user
+    const userInvestments = await Investment.find({ user: userId });
+
+    // Separate active investments
+    const activeInvestments = userInvestments.filter(inv => inv.status === "active");
+
+    // Total amount ever invested
+    const totalInvestedAmount = userInvestments.reduce((sum, inv) => sum + Number(inv.amount), 0);
+
+    // Total returns gained
+    const totalReturns = userInvestments.reduce((sum, inv) => sum + Number(inv.totalReturns || 0), 0);
+
+    // Total profit (you can define this differently if needed)
+    const totalProfit = totalReturns;
+
+    // Current active investment amount
+    const currentInvested = activeInvestments.reduce((sum, inv) => sum + Number(inv.amount), 0);
+
+    res.status(200).json({
+      success: true,
+      totalInvestedAmount,
+      totalReturns,
+      totalProfit,
+      currentInvested,
+      investmentsCount: userInvestments.length,
+      activeInvestmentsCount: activeInvestments.length
+    });
+  } catch (error) {
+    console.error("Error fetching investment stats:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // get investments according to the user 
 router.get("/investments/:userId", protect, async (req, res) => {
     try {
@@ -568,57 +607,58 @@ router.get("/investments/:userId", protect, async (req, res) => {
     }
 });
 // Fetch total investments, current investments, total returns, and current invested amount
-router.get("/user/investments", protect, async (req, res) => {
-    try {
-        const userId = req.user.id;
+// router.get("/user/investments", protect, async (req, res) => {
+//     try {
+//         const userId = req.user.id;
 
-        // Find all investments by the user
-        const investments = await Investment.find({ user: userId });
+//         // Find all investments by the user
+//         const investments = await Investment.find({ user: userId });
 
-        if (!investments.length) {
-            return res.status(200).json({ success: false, message: "No investments found." });
-        }
+//         if (!investments.length) {
+//             return res.status(200).json({ success: false, message: "No investments found." });
+//         }
 
-        let totalInvestments = 0;
-        let totalReturns = 0;
-        let currentInvested = 0;
-        let currentInvestmentsList = [];
+//         let totalInvestments = 0;
+//         let totalReturns = 0;
+//         let currentInvested = 0;
+//         let currentInvestmentsList = [];
 
-        investments.forEach(investment => {
-            totalInvestments += investment.amount;
+//         investments.forEach(investment => {
+//             totalInvestments += investment.amount;
 
-            if (new Date(investment.endDate) > new Date()) {
-                // If the investment is still active
-                currentInvested += investment.amount;
-                currentInvestmentsList.push({
-                    planName: investment.planName,
-                    amount: investment.amount,
-                    apr: investment.apy,
-                    startDate: investment.startDate,
-                    endDate: investment.endDate,
-                    maturityAmount: investment.maturityAmount,
-                    status: investment.status
-                });
-            } else {
-                // If the investment has matured
-                totalReturns += investment.maturityAmount - investment.amount;
-            }
-        });
+//             if (new Date(investment.endDate) > new Date()) {
+//                 // If the investment is still active
+//                 currentInvested += investment.amount;
+//                 currentInvestmentsList.push({
+//                     planName: investment.planName,
+//                     amount: investment.amount,
+//                     apr: investment.apy,
+//                     startDate: investment.startDate,
+//                     endDate: investment.endDate,
+//                     maturityAmount: investment.maturityAmount,
+//                     status: investment.status
+//                 });
+//             } else {
+//                 // If the investment has matured
+                
+//                 totalReturns += investment.maturityAmount - investment.amount;
+//             }
+//         });
 
-        res.status(200).json({
-            success: true,
-            amount  : totalInvestments,
-            totalInvestments,
-            currentInvested,
-            totalReturns,
-            currentInvestments: currentInvestmentsList
-        });
+//         res.status(200).json({
+//             success: true,
+//             amount  : totalInvestments,
+//             totalInvestments,
+//             currentInvested,
+//             totalReturns,
+//             currentInvestments: currentInvestmentsList
+//         });
 
-    } catch (error) {
-        console.error("Error fetching investment details:", error);
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
+//     } catch (error) {
+//         console.error("Error fetching investment details:", error);
+//         res.status(500).json({ success: false, error: error.message });
+//     }
+// });
 function calculateInvestmentSchedule(principal, apy, tenureMonths) {
     let monthlyRate = apy / 12 / 100;
     let monthlyInterest = principal * monthlyRate;

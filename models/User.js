@@ -59,7 +59,7 @@ const userSchema = new mongoose.Schema({
     //   ifscCode: String,
     //   bankName: String,
     // },
-    idNumber: Number
+    idNumber: String
   },
   bankDetails: {
     accountHolderName: String,

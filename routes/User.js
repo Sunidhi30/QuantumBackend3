@@ -352,9 +352,6 @@ router.post(
       if (!req.files || !req.files.idProof) {
         return res.status(400).json({ message: "ID Proof document is required" });
       }
-
-      
-
       // Upload ID Proof to Cloudinary - now with the forDisplay parameter set to true
       const idProofUrl = await uploadToCloudinary(
         req.files.idProof[0].buffer,
@@ -362,13 +359,13 @@ router.post(
         req.files.idProof[0].mimetype,
         true // Set to true to display in browser instead of downloading
       );
-
       // Ensure kycDocuments exists and update it
       if (!user.kycDocuments) {
         user.kycDocuments = {};
       }
       user.kycDocuments.idProof = idProofUrl;
-      user.kycDocuments.idNumber = Number(idNumber); // Convert to Number to match schema
+      user.kycDocuments.idNumber=idNumber;
+      // user.kycDocuments.idNumber = Number(idNumber); // Convert to Number to match schema
 
       console.log("Before saving:", user.kycDocuments);
       user.kycStatus = "pending";

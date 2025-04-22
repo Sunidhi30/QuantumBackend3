@@ -74,8 +74,7 @@ router.get('/user-profile', protect, async (req, res) => {
 //     res.status(500).json({ message: 'Server error' });
 //   }
 // });
-// PUT: Update profile with optional image upload
-
+// PUT: Update profile with optional image uploa
 router.put(
   '/update-profile',
   protect,
@@ -125,7 +124,6 @@ router.put(
     }
   }
 );
-
 //All the invested plans 
 router.get('/plans', async (req, res) => {
     try {
@@ -275,66 +273,6 @@ router.get('/plans/filter', protect, async (req, res) => {
     }
 });
 //kycs of the users 
-// router.post(
-//   "/kyc",
-//   protect,
-//   upload.fields([{ name: "idProof", maxCount: 1 }]), // Aadhaar or Passport
-//   async (req, res) => {
-//     try {
-//       const user = await User.findById(req.user.id);
-//       if (!user) return res.status(404).json({ message: "User not found" });
-
-//       const { nationality, idNumber } = req.body;
-//       if (!nationality || !idNumber) {
-//         return res.status(400).json({ message: "Nationality and ID number are required" });
-//       }
-
-//       if (!req.files || !req.files.idProof) {
-//         return res.status(400).json({ message: "ID Proof document is required" });
-//       }
-
-//       if (nationality === "Indian") {
-//         if (!/^\d{12}$/.test(idNumber)) {
-//           return res.status(400).json({ message: "Aadhaar number must be 12 digits" });
-//         }
-//       } else {
-//         if (!/^[A-Z0-9]+$/.test(idNumber)) {
-//           return res.status(400).json({ message: "Invalid passport number format" });
-//         }
-//       }
-
-//       // Upload ID Proof to Cloudinary
-//       const idProofUrl = await uploadsCloudinary(
-//         req.files.idProof[0].buffer,
-//         "kyc_docs",
-//         req.files.idProof[0].mimetype
-//       );
-
-//       // Ensure kycDocuments exists and update it
-//       if (!user.kycDocuments) {
-//         user.kycDocuments = {};
-//       }
-//       user.kycDocuments.idProof = idProofUrl;
-//       user.kycDocuments.idNumber = Number(idNumber); // Convert to Number to match schema
-
-//       console.log("Before saving:", user.kycDocuments);
-//       user.kycStatus = "pending";
-//       await user.save();
-//       console.log("After saving:", user.kycDocuments);
-//      console.log("", user.kycDocuments )
-//       res.status(200).json({
-//         userId: req.user.id,
-//         success: true,
-//         message: "KYC submitted successfully. Waiting for admin approval.",
-//         idproof : user.kycDocuments.idProof,
-//         // urls: user.kycDocuments,
-//       });
-//     } catch (error) {
-//       console.error("KYC Upload Error:", error);
-//       res.status(500).json({ error: error.message });
-//     }
-//   }
-// );
 router.post(
   "/kyc",
   protect,
@@ -410,6 +348,108 @@ router.get('/kyc-documents', protect, async (req, res) => {
   } catch (error) {
       console.error("Error fetching KYC documents:", error);
       res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// Calculate investment details
+// router.post("/calculate-investments", protect, async (req, res) => {
+//   try {
+//     const userId = req.user.id;
+//     const { planId, units } = req.body;
+//     if (!planId || !units || units <= 0) {
+//       return res.status(400).json({ success: false, message: "Plan ID and a valid number of units are required" });
+//     }
+//     const plan = await Plan.findById(planId);
+//     if (!plan || !plan.isActive) {
+//       return res.status(404).json({ success: false, message: "Plan not found or inactive" });
+//     }
+//     const investmentAmount = units * plan.minInvestment;
+//     const tenureInMonths = parseInt(plan.tenureOptions[plan.tenureOptions.length - 1]);
+//     const tenureInYears = tenureInMonths / 12;
+
+//     // Compound interest calculation (monthly)
+//     const principal = investmentAmount;
+//     const rate = plan.apy / 100;
+//     const n = 12; // monthly compounding
+//     const t = tenureInYears;
+
+//     const taxAmount = principal * Math.pow(1 + rate / n, n * t);
+//     const maturityAmount = investmentAmount + taxAmount + (investmentAmount * rate);
+//     const totalReturns = maturityAmount - investmentAmount;
+
+//     return res.status(200).json({
+//       success: true,
+//       minInvestmentPerUnit: plan.minInvestment,
+//       units,
+//       amountPayable: investmentAmount.toFixed(2),
+//       taxAmount: taxAmount.toFixed(2),
+//       totalReturns: totalReturns.toFixed(2),
+//       maturityAmount: maturityAmount.toFixed(2),
+//       apy: plan.apy,
+//       tenure: tenureInMonths
+//     });
+
+//   } catch (err) {
+//     console.error("Error in calculation:", err);
+//     return res.status(500).json({ success: false, message: "Server error" });
+//   }
+// });
+router.post("/calculate-investments", protect, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { planId, units, paymentMethod, paymentDetails } = req.body;
+
+    if (!planId || !units || units <= 0) {
+      return res.status(400).json({ success: false, message: "Plan ID and valid units required" });
+    }
+
+    const plan = await Plan.findById(planId);
+    if (!plan || !plan.isActive) {
+      return res.status(404).json({ success: false, message: "Plan not found or inactive" });
+    }
+
+    const investmentAmount = units * plan.minInvestment;
+    const tenureInMonths = parseInt(plan.tenureOptions[plan.tenureOptions.length - 1]);
+    const tenureInYears = tenureInMonths / 12;
+
+    const principal = investmentAmount;
+    const rate = plan.apy / 100;
+    const n = 12;
+    const t = tenureInYears;
+
+    const taxAmount = principal * Math.pow(1 + rate / n, n * t) - principal;
+    const maturityAmount = investmentAmount + taxAmount;
+    const totalReturns = maturityAmount - investmentAmount;
+
+    const endDate = new Date();
+    endDate.setMonth(endDate.getMonth() + tenureInMonths);
+
+    // Optional: Save the investment record
+    const newInvestment = await Investment.create({
+      user: userId,
+      plan: plan._id,
+      planName: plan.name,
+      units,
+      amount: investmentAmount,
+      TAXAmount: taxAmount,
+      apr: plan.apy,
+      startDate: new Date(),
+      endDate,
+      maturityAmount,
+      totalReturns,
+      paymentMethod,
+      paymentDetails
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Investment calculated and saved successfully",
+      investment: newInvestment
+    });
+
+  } catch (err) {
+    console.error("Error in calculation:", err);
+    return res.status(500).json({ success: false, message: "Server error" });
   }
 });
 // invest now options clicked api for that
@@ -550,51 +590,66 @@ router.get("/investments/stats", protect, async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 });
-
 // get investments according to the user 
-router.get("/investments", protect, async (req, res) => {
-    try {
-      const userId = req.user.id; // Get user ID from token (middleware handles this)
+// router.get("/investments", protect, async (req, res) => {
+//     try {
+//       const userId = req.user.id; // Get user ID from token (middleware handles this)
 
-        // Find investments made by the user
-        const investments = await Investment.find({ user: userId }).populate("plan");
+//         // Find investments made by the user
+//         const investments = await Investment.find({ user: userId }).populate("plan");
 
-        if (!investments.length) {
-            return res.status(404).json({ success: false, message: "No investments found for this user." });
-        }
+//         if (!investments.length) {
+//             return res.status(404).json({ success: false, message: "No investments found for this user." });
+//         }
 
-        // Calculate the investment details
-        const investmentDetails = investments.map(investment => {
-            const { planName, amount, apr, startDate, endDate, maturityAmount } = investment;
+//         // Calculate the investment details
+//         const investmentDetails = investments.map(investment => {
+//             const { planName, amount, apr, startDate, endDate, maturityAmount } = investment;
 
-            // Convert startDate and endDate to Date objects
-            const start = new Date(startDate);
-            const end = new Date(endDate);
+//             // Convert startDate and endDate to Date objects
+//             const start = new Date(startDate);
+//             const end = new Date(endDate);
 
-            // 🔹 Calculate tenure in months
-            const tenure = Math.round((end - start) / (1000 * 60 * 60 * 24 * 30)); 
+//             // 🔹 Calculate tenure in months
+//             const tenure = Math.round((end - start) / (1000 * 60 * 60 * 24 * 30)); 
 
-            // 🔹 Yield to Maturity (YTM) Calculation
-            const YTM = ((maturityAmount - amount) / amount) * 100;
+//             // 🔹 Yield to Maturity (YTM) Calculation
+//             const YTM = ((maturityAmount - amount) / amount) * 100;
 
-            // 🔹 Total Profit Earned
-            const totalProfit = maturityAmount - amount;
+//             // 🔹 Total Profit Earned
+//             const totalProfit = maturityAmount - amount;
 
-            return {
-                planName,
-                tenure: `${tenure} months`,
-                minInvestment: amount,
-                yieldToMaturity: `${YTM.toFixed(2)}%`,
-                totalProfit
-            };
-        });
+//             return {
+//                 planName,
+//                 tenure: `${tenure} months`,
+//                 minInvestment: amount,
+//                 yieldToMaturity: `${YTM.toFixed(2)}%`,
+//                 totalProfit
+//             };
+//         });
 
-        res.status(200).json({ success: true, investments: investmentDetails });
-    } catch (error) {
-        console.error("Error fetching investment details:", error);
-        res.status(500).json({ success: false, error: error.message });
-    }
+//         res.status(200).json({ success: true, investments: investmentDetails });
+//     } catch (error) {
+//         console.error("Error fetching investment details:", error);
+//         res.status(500).json({ success: false, error: error.message });
+//     }
+// });
+router.get('/investments', protect, async (req, res) => {
+  try {
+    const userId = req.user.id; // Extracted from token
+
+    const investments = await Investment.find({ user: userId })
+      .populate('plan')
+      .populate('payouts')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json(investments);
+  } catch (err) {
+    console.error('Error fetching investments:', err);
+    res.status(500).json({ error: 'Failed to fetch investments' });
+  }
 });
+
 // Fetch total investments, current investments, total returns, and current invested amount
 // router.get("/user/investments", protect, async (req, res) => {
 //     try {
@@ -659,6 +714,27 @@ function calculateInvestmentSchedule(principal, apy, tenureMonths) {
         totalMonthlyReturns
     };
 }
+router.get('/:investmentId/schedule/pdf/view', protect, async (req, res) => {
+  try {
+    const investmentId = req.params.investmentId;
+    const pdfFileName = `investment_schedule_${investmentId}.pdf`;
+    const pdfFilePath = path.join(__dirname, '../downloads', pdfFileName);
+
+    if (!fs.existsSync(pdfFilePath)) {
+      return res.status(404).json({ success: false, message: "PDF not found. Please generate it first." });
+    }
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename=' + pdfFileName);
+
+    const fileStream = fs.createReadStream(pdfFilePath);
+    fileStream.pipe(res);
+
+  } catch (error) {
+    console.error("Error displaying PDF:", error);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+});
 // download the investments according to the units
 router.get('/:investmentId/schedule/pdf/generate', protect, async (req, res) => {
   try {
@@ -803,25 +879,45 @@ router.get("/faq", async (req, res) => {
 //     } catch (error) {
 //         res.status(500).json({ message: 'Server error', error: error.message });
 //     }
-router.get('/rewards/:userId', async (req, res) => {
-  try {
-      const { userId } = req.params;
-      const user = await User.findById(userId);
+// router.get('/rewards/:userId', async (req, res) => {
+//   try {
+//       const { userId } = req.params;
+//       const user = await User.findById(userId);
       
-      if (!user) {
-          return res.status(404).json({ message: 'User not found' });
-      }
+//       if (!user) {
+//           return res.status(404).json({ message: 'User not found' });
+//       }
 
-      // Use wallet balance instead of total investment
-      const walletBalance = user.walletBalance;
+//       // Use wallet balance instead of total investment
+//       const walletBalance = user.walletBalance;
 
-      const eligibleRewards = await Reward.find({
-          amountRequired: { $lte: walletBalance }
-      });
+//       const eligibleRewards = await Reward.find({
+//           amountRequired: { $lte: walletBalance }
+//       });
 
-      res.status(200).json({ walletBalance, eligibleRewards });
+//       res.status(200).json({ walletBalance, eligibleRewards });
+//   } catch (error) {
+//       res.status(500).json({ message: 'Server error', error: error.message });
+//   }
+// });
+router.get('/rewards', protect, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const walletBalance = user.walletBalance;
+
+    const eligibleRewards = await Reward.find({
+      amountRequired: { $lte: walletBalance }
+    });
+
+    res.status(200).json({ walletBalance, eligibleRewards });
   } catch (error) {
-      res.status(500).json({ message: 'Server error', error: error.message });
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 // });

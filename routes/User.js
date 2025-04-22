@@ -1160,26 +1160,46 @@ router.post('/withdraw', protect, checkSufficientBalance, [
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 });
-// transactions history of the user
-router.get('/transactions/:userId', async (req, res) => {
-    try {
-        const { userId } = req.params;
+router.get('/transactions', protect, async (req, res) => {
+  try {
+    const userId = req.user.id;
 
-        // Check if the user exists
-        const user = await User.findById(userId);
-        if (!user) {
-            return res.status(404).json({ message: 'User not found' });
-        }
-
-        // Fetch all transactions for the user
-        const transactions = await PaymentRequest.find({ user: userId }).sort({ createdAt: -1 });
-       console.log(transactions)
-        res.status(200).json({ success: true, transactions });
-    } catch (error) {
-        console.error('Error fetching transactions:', error);
-        res.status(500).json({ success: false, message: 'Internal server error' });
+    // Check if the user exists
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
     }
+
+    // Fetch all transactions for the user
+    const transactions = await PaymentRequest.find({ user: userId }).sort({ createdAt: -1});
+    console.log(transactions);
+
+    res.status(200).json({ success: true, transactions });
+  } catch (error) {
+    console.error('Error fetching transactions:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
 });
+// transactions history of the user
+// router.get('/transactions/:userId', async (req, res) => {
+//     try {
+//         const { userId } = req.params;
+
+//         // Check if the user exists
+//         const user = await User.findById(userId);
+//         if (!user) {
+//             return res.status(404).json({ message: 'User not found' });
+//         }
+
+//         // Fetch all transactions for the user
+//         const transactions = await PaymentRequest.find({ user: userId }).sort({ createdAt: -1 });
+//        console.log(transactions)
+//         res.status(200).json({ success: true, transactions });
+//     } catch (error) {
+//         console.error('Error fetching transactions:', error);
+//         res.status(500).json({ success: false, message: 'Internal server error' });
+//     }
+// });
 // get all the cateoggies (low risk , high yeild )
 router.get('/categories', async (req, res) => {
   try {

@@ -353,15 +353,7 @@ router.post(
         return res.status(400).json({ message: "ID Proof document is required" });
       }
 
-      if (nationality === "Indian") {
-        if (!/^\d{12}$/.test(idNumber)) {
-          return res.status(400).json({ message: "Aadhaar number must be 12 digits" });
-        }
-      } else {
-        if (!/^[A-Z0-9]+$/.test(idNumber)) {
-          return res.status(400).json({ message: "Invalid passport number format" });
-        }
-      }
+      
 
       // Upload ID Proof to Cloudinary - now with the forDisplay parameter set to true
       const idProofUrl = await uploadToCloudinary(

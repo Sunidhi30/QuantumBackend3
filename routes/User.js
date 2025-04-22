@@ -552,9 +552,9 @@ router.get("/investments/stats", protect, async (req, res) => {
 });
 
 // get investments according to the user 
-router.get("/investments/:userId", protect, async (req, res) => {
+router.get("/investments", protect, async (req, res) => {
     try {
-        const userId = req.params.userId;
+      const userId = req.user.id; // Get user ID from token (middleware handles this)
 
         // Find investments made by the user
         const investments = await Investment.find({ user: userId }).populate("plan");

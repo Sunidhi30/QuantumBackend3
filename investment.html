@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Investment PDF Test</title>
   <style>
     body {
@@ -14,15 +14,21 @@
       text-align: center;
       color: #333;
     }
-    .button-container {
+    .input-container, .button-container {
       display: flex;
       justify-content: center;
-      margin-top: 30px;
+      margin-top: 20px;
+    }
+    input {
+      padding: 10px;
+      width: 300px;
+      font-size: 16px;
+      margin-right: 10px;
     }
     .button {
       padding: 10px 20px;
       font-size: 16px;
-      margin: 0 10px;
+      margin: 0 5px;
       cursor: pointer;
       border: none;
       border-radius: 5px;
@@ -38,30 +44,48 @@
 <body>
   <h1>Investment PDF Test</h1>
 
+  <div class="input-container">
+    <input type="text" id="investmentIdInput" placeholder="Enter Investment ID" />
+  </div>
+
   <div class="button-container">
-    <!-- Button to view PDF inline -->
     <button class="button" id="viewPdfBtn">View Investment PDF</button>
-    <!-- Button to download PDF -->
     <button class="button" id="downloadPdfBtn">Download Investment PDF</button>
-    <button class="button" id="downloadPdfBtn">Download Investment PDF</button>
-    <!-- Button to download Excel -->
     <button class="button" id="downloadExcelBtn">Download Investment Excel</button>
   </div>
 
   <script>
-    const investmentId = "6807de660eeea8424ebb7339"; // Dynamic investmentId passed from backend
+    function getInvestmentId() {
+      return document.getElementById('investmentIdInput').value.trim();
+    }
 
     document.getElementById('viewPdfBtn').addEventListener('click', () => {
-      window.open(`api/users/${investmentId}/schedule/pdf/view`, '_blank');
+      const investmentId = getInvestmentId();
+      if (investmentId) {
+        window.open(`/api/users/${investmentId}/schedule/pdf/view`, '_blank');
+      } else {
+        alert('Please enter a valid Investment ID');
+      }
     });
 
     document.getElementById('downloadPdfBtn').addEventListener('click', () => {
-      window.location.href = `/investment/${investmentId}/schedule/pdf/generate-download`;
+      const investmentId = getInvestmentId();
+      if (investmentId) {
+        window.location.href = `/investment/${investmentId}/schedule/pdf/generate-download`;
+      } else {
+        alert('Please enter a valid Investment ID');
+      }
     });
-     // Download Excel button
-     document.getElementById('downloadExcelBtn').addEventListener('click', () => {
-      window.location.href = `/investment/${investmentId}/schedule/excel/generate-download`;
+
+    document.getElementById('downloadExcelBtn').addEventListener('click', () => {
+      const investmentId = getInvestmentId();
+      if (investmentId) {
+        window.location.href = `/investment/${investmentId}/schedule/excel/generate-download`;
+      } else {
+        alert('Please enter a valid Investment ID');
+      }
     });
   </script>
 </body>
 </html>
+ 

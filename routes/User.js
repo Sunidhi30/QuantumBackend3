@@ -616,59 +616,33 @@ router.get('/investments', protect, async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch investments' });
   }
 });
+router.get('/investments-withprofits', protect, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const investments = await Investment.find({ user: userId }).sort({ createdAt: -1 });
+
+    // Calculate summary
+    const summary = investments.reduce(
+      (acc, inv) => {
+        acc.totalAmount += inv.amount || 0;
+        acc.totalReturns += inv.totalReturns || 0;
+        acc.totalMaturityAmount += inv.maturityAmount || 0;
+        return acc;
+      },
+      { totalAmount: 0, totalReturns: 0, totalMaturityAmount: 0 }
+    );
+
+    res.status(200).json({
+      summary,
+      investments
+    });
+  } catch (err) {
+    console.error('Error fetching investments:', err);
+    res.status(500).json({ error: 'Failed to fetch investments' });
+  }
+});
 // Fetch total investments, current investments, total returns, and current invested amount
-// router.get("/user/investments", protect, async (req, res) => {
-//     try {
-//         const userId = req.user.id;
-
-//         // Find all investments by the user
-//         const investments = await Investment.find({ user: userId });
-
-//         if (!investments.length) {
-//             return res.status(200).json({ success: false, message: "No investments found." });
-//         }
-
-//         let totalInvestments = 0;
-//         let totalReturns = 0;
-//         let currentInvested = 0;
-//         let currentInvestmentsList = [];
-
-//         investments.forEach(investment => {
-//             totalInvestments += investment.amount;
-
-//             if (new Date(investment.endDate) > new Date()) {
-//                 // If the investment is still active
-//                 currentInvested += investment.amount;
-//                 currentInvestmentsList.push({
-//                     planName: investment.planName,
-//                     amount: investment.amount,
-//                     apr: investment.apy,
-//                     startDate: investment.startDate,
-//                     endDate: investment.endDate,
-//                     maturityAmount: investment.maturityAmount,
-//                     status: investment.status
-//                 });
-//             } else {
-//                 // If the investment has matured
-                
-//                 totalReturns += investment.maturityAmount - investment.amount;
-//             }
-//         });
-
-//         res.status(200).json({
-//             success: true,
-//             amount  : totalInvestments,
-//             totalInvestments,
-//             currentInvested,
-//             totalReturns,
-//             currentInvestments: currentInvestmentsList
-//         });
-
-//     } catch (error) {
-//         console.error("Error fetching investment details:", error);
-//         res.status(500).json({ success: false, error: error.message });
-//     }
-// });
 function calculateInvestmentSchedule(principal, apy, tenureMonths) {
     let monthlyRate = apy / 12 / 100;
     let monthlyInterest = principal * monthlyRate;
@@ -862,7 +836,6 @@ router.get('/rewards', protect, async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
-// });
 //upload the query to the admin
 router.post('/upload-query', protect , async (req, res) => {
   try {

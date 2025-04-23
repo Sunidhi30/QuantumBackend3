@@ -681,7 +681,7 @@ function calculateInvestmentSchedule(principal, apy, tenureMonths) {
     };
 }
 // Generate and download route combined
-router.get('/:investmentId/schedule/pdf/view', protect, async (req, res) => {
+router.get('/:investmentId/schedule/pdf/view-download', protect, async (req, res) => {
   try {
     const investmentId = req.params.investmentId;
     const pdfFileName = `investment_schedule_${investmentId}.pdf`;
@@ -707,76 +707,6 @@ router.get('/:investmentId/schedule/pdf/view', protect, async (req, res) => {
       success: false,
       message: "Server Error while displaying PDF"
     });
-  }
-});
-// download the investments according to the units
-router.get('/:investmentId/schedule/pdf/generate-download', protect, async (req, res) => {
-  try {
-    const investment = await Investment.findById(req.params.investmentId).populate('plan');
-
-    if (!investment) {
-      return res.status(404).json({ success: false, message: "Investment not found" });
-    }
-
-    const { amount, startDate, endDate, plan } = investment;
-    const { apy, minInvestment, tenureOptions, name } = plan;
-
-    const units = amount / minInvestment;
-    const monthlyRate = apy / 12 / 100;
-    const monthlyInterestPerUnit = minInvestment * monthlyRate;
-    const totalMonthlyInterest = monthlyInterestPerUnit * units;
-    const totalProfit = (amount * apy) / 100;
-    const totalMaturityAmount = amount + totalProfit;
-
-    const formattedStartDate = new Date(startDate).toLocaleDateString();
-    const formattedEndDate = new Date(endDate).toLocaleDateString();
-
-    const pdfFileName = `investment_schedule_${investment._id}.pdf`;
-    const downloadDir = path.resolve(__dirname, '../downloads');
-    const pdfFilePath = path.join(downloadDir, pdfFileName);
-
-    if (!fs.existsSync(downloadDir)) {
-      fs.mkdirSync(downloadDir, { recursive: true });
-    }
-
-    const doc = new PDFDocument({ margin: 30, size: "A4", layout: "landscape" });
-    const writeStream = fs.createWriteStream(pdfFilePath);
-    doc.pipe(writeStream);
-
-    doc.fontSize(16).text('Investment Schedule', { align: 'center' }).moveDown();
-
-    const columnHeaders = [
-      "Plan Name", "Start Date", "End Date", "Tenure", "Investment",
-      "Units", "APY", "Monthly Interest/Unit", "Total Monthly Interest",
-      "Total Profit", "Maturity Amount"
-    ];
-
-    const columnData = [
-      name, formattedStartDate, formattedEndDate, tenureOptions[0],
-      `₹${amount.toFixed(2)}`, units.toFixed(2), `${apy}%`,
-      `₹${monthlyInterestPerUnit.toFixed(2)}`, `₹${totalMonthlyInterest.toFixed(2)}`,
-      `₹${totalProfit.toFixed(2)}`, `₹${totalMaturityAmount.toFixed(2)}`
-    ];
-
-    generateColumnTable(doc, columnHeaders, columnData);
-
-    doc.end();
-
-    writeStream.on('finish', () => {
-      res.setHeader('Content-Disposition', `inline; filename="${pdfFileName}"`);
-      res.setHeader('Content-Type', 'application/pdf');
-
-      res.download(pdfFilePath, pdfFileName, (err) => {
-        if (err) {
-          console.error("Error downloading PDF:", err);
-          res.status(500).json({ success: false, message: "Error downloading PDF" });
-        }
-      });
-    });
-
-  } catch (error) {
-    console.error("Error generating and downloading PDF:", error);
-    res.status(500).json({ success: false, message: "Server Error" });
   }
 });
 // 🔹 Function to generate columns

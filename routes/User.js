@@ -605,8 +605,9 @@ router.get('/investments', protect, async (req, res) => {
     const userId = req.user.id; // Extracted from token
 
     const investments = await Investment.find({ user: userId })
-      .populate('plan')
-      .populate('payouts')
+     
+      .populate('amount')
+      .populate('planName')
       .sort({ createdAt: -1 });
 
     res.status(200).json(investments);
@@ -615,7 +616,6 @@ router.get('/investments', protect, async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch investments' });
   }
 });
-
 // Fetch total investments, current investments, total returns, and current invested amount
 // router.get("/user/investments", protect, async (req, res) => {
 //     try {

@@ -406,6 +406,7 @@ router.post("/investments/calculate", protect, async (req, res) => {
       data: {
         planName: plan.name,
         units,
+        minimumInvestments: plan.minInvestment,
         investmentAmount,
         taxAmount,
         totalAmountPayable,
@@ -655,12 +656,15 @@ function calculateInvestmentSchedule(principal, apy, tenureMonths) {
     };
 }
 // Generate and download route combined
-router.get('/:investmentId/schedule/pdf/view-download', protect, async (req, res) => {
+router.get('/:investmentId/schedule/pdf/view-download', async (req, res) => {
+  
   try {
     const investmentId = req.params.investmentId;
     const pdfFileName = `investment_schedule_${investmentId}.pdf`;
     const pdfFilePath = path.resolve(__dirname, '../downloads', pdfFileName);
+    console.log("Saved PDF path:", path.resolve(__dirname, '../downloads', `investment_schedule_${investmentId}.pdf`));
 
+    console.log(" pdfFilePath "+" "+ pdfFilePath )
     if (!fs.existsSync(pdfFilePath)) {
       return res.status(404).json({
         success: false,
@@ -690,15 +694,15 @@ function generateColumnTable(doc, headers, data) {
   const columnWidth = 110;
   const rowHeight = 25;
 
-  doc.font("Helvetica-Bold").fontSize(10);
+  doc.font("Helvetica-Bold").fontSize(9);
   headers.forEach((header, index) => {
-      doc.text(header, startX + index * columnWidth, startY, { width: columnWidth, align: "center" });
+      doc.text(header, startX + index * columnWidth, startY, { width: columnWidth, align: "left" });
   });
 
-  doc.font("Helvetica").fontSize(10);
+  doc.font("Helvetica").fontSize(9);
   const dataY = startY + rowHeight;
   data.forEach((value, index) => {
-      doc.text(value, startX + index * columnWidth, dataY, { width: columnWidth, align: "center" });
+      doc.text(value, startX + index * columnWidth, dataY, { width: columnWidth, align: "left" });
   });
 
   doc.moveDown();

@@ -25,15 +25,20 @@ app.set('views', path.join(__dirname, 'views'));
 app.get('/api/users/:investmentId/schedule/pdf/view', (req, res) => {
   const { investmentId } = req.params;
   const pdfFileName = `investment_schedule_${investmentId}.pdf`;
-  const pdfFilePath = path.resolve(__dirname, 'downloads', pdfFileName);
+  // const pdfFilePath = path.resolve(__dirname,'downloads', pdfFileName);
+  const cleanDirname = __dirname.trim();
 
+  const pdfFilePath = path.join(cleanDirname, 'downloads', pdfFileName);
+   
+  console.log("DIRNAME:", `"${__dirname}"`);
+
+   console.log("pdfFilePath"+" "+pdfFilePath);
   if (!fs.existsSync(pdfFilePath)) {
     return res.status(404).json({
       success: false,
       message: "PDF not found. Please generate it first."
     });
   }
-
   res.set({
     'Content-Type': 'application/pdf',
     'Content-Disposition': `inline; filename="${pdfFileName}"`

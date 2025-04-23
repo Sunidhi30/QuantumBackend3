@@ -20,6 +20,7 @@ const { v4: uuidv4 } = require('uuid');
 const WithdrawalRequest = require('../models/Withdrawal');
 const fs = require('fs');
 const path = require('path');
+const ExcelJS = require('exceljs');
 
 const transporter = nodemailer.createTransport({
     service: 'gmail', // Use your email provider
@@ -351,209 +352,173 @@ router.get('/kyc-documents', protect, async (req, res) => {
   }
 });
 
-// Calculate investment details
-// router.post("/calculate-investments", protect, async (req, res) => {
-//   try {
-//     const userId = req.user.id;
-//     const { planId, units } = req.body;
-//     if (!planId || !units || units <= 0) {
-//       return res.status(400).json({ success: false, message: "Plan ID and a valid number of units are required" });
-//     }
-//     const plan = await Plan.findById(planId);
-//     if (!plan || !plan.isActive) {
-//       return res.status(404).json({ success: false, message: "Plan not found or inactive" });
-//     }
-//     const investmentAmount = units * plan.minInvestment;
-//     const tenureInMonths = parseInt(plan.tenureOptions[plan.tenureOptions.length - 1]);
-//     const tenureInYears = tenureInMonths / 12;
-
-//     // Compound interest calculation (monthly)
-//     const principal = investmentAmount;
-//     const rate = plan.apy / 100;
-//     const n = 12; // monthly compounding
-//     const t = tenureInYears;
-
-//     const taxAmount = principal * Math.pow(1 + rate / n, n * t);
-//     const maturityAmount = investmentAmount + taxAmount + (investmentAmount * rate);
-//     const totalReturns = maturityAmount - investmentAmount;
-
-//     return res.status(200).json({
-//       success: true,
-//       minInvestmentPerUnit: plan.minInvestment,
-//       units,
-//       amountPayable: investmentAmount.toFixed(2),
-//       taxAmount: taxAmount.toFixed(2),
-//       totalReturns: totalReturns.toFixed(2),
-//       maturityAmount: maturityAmount.toFixed(2),
-//       apy: plan.apy,
-//       tenure: tenureInMonths
-//     });
-
-//   } catch (err) {
-//     console.error("Error in calculation:", err);
-//     return res.status(500).json({ success: false, message: "Server error" });
-//   }
-// });
-router.post("/calculate-investments", protect, async (req, res) => {
+// get the amount payable and tax returns 
+// / First, let's create an endpoint to calculate the amount payable based on units
+router.post("/investments/calculate", protect, async (req, res) => {
   try {
-    const userId = req.user.id;
-    const { planId, units, paymentMethod, paymentDetails } = req.body;
-
+    const { planId, units } = req.body;
+    
+    // Validate required fields
     if (!planId || !units || units <= 0) {
-      return res.status(400).json({ success: false, message: "Plan ID and valid units required" });
+      return res.status(400).json({ 
+        success: false, 
+        message: "Plan ID and a valid number of units are required" 
+      });
+    }
+    
+    // Fetch the investment plan
+    const plan = await Plan.findById(planId);
+    if (!plan || !plan.isActive) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Plan not found or inactive" 
+      });
+    }
+    
+    // Calculate investment amount
+    const investmentAmount = units * plan.minInvestment;
+    
+    // Calculate tax amount (assuming 18% GST or whatever tax rate you need)
+    const taxRate = 0.18; // 18% tax rate - adjust as needed
+    const taxAmount = investmentAmount * taxRate;
+    
+    // Calculate total amount payable (investment + tax)
+    const totalAmountPayable = investmentAmount + taxAmount;
+    
+    // Calculate maturity date based on tenure
+    const tenureInMonths = parseInt(plan.tenureOptions[plan.tenureOptions.length - 1]);
+    const tenureInYears = tenureInMonths / 12;
+    const maturityDate = new Date();
+    maturityDate.setMonth(maturityDate.getMonth() + tenureInMonths);
+    
+    // Calculate estimated returns
+    const principal = investmentAmount;
+    const rate = plan.apy / 100; // Convert APY to decimal
+    const n = 12; // Monthly compounding
+    const t = tenureInYears;
+    
+    // Calculate compound interest
+    const maturityAmount = principal * Math.pow((1 + rate/n), n * t);
+    const totalReturns = maturityAmount - principal;
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        planName: plan.name,
+        units,
+        investmentAmount,
+        taxAmount,
+        totalAmountPayable,
+        maturityDate,
+        maturityAmount: parseFloat(maturityAmount.toFixed(2)),
+        totalReturns: parseFloat(totalReturns.toFixed(2))
+      }
+    });
+  } catch (error) {
+    console.error("Error calculating investment:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to calculate investment details",
+      error: error.message
+    });
+  }
+});
+
+// Now, let's update the investment creation endpoint to use the calculated values
+router.post("/investments/confirm", protect, async (req, res) => {
+  try {
+    const { planId, units, totalAmountPayable } = req.body;
+
+    if (!planId || !units || units <= 0 || !totalAmountPayable) {
+      return res.status(400).json({ success: false, message: "Invalid data" });
     }
 
     const plan = await Plan.findById(planId);
     if (!plan || !plan.isActive) {
-      return res.status(404).json({ success: false, message: "Plan not found or inactive" });
+      return res.status(404).json({ success: false, message: "Plan not found" });
     }
 
+    const user = await User.findById(req.user._id);
+
+    if (user.walletBalance < totalAmountPayable) {
+      return res.status(400).json({ success: false, message: "Insufficient wallet balance" });
+    }
+
+    // Deduct from wallet
+    user.walletBalance -= totalAmountPayable;
+    await user.save();
+
+    // Compute dates and returns again for security
     const investmentAmount = units * plan.minInvestment;
+    const taxAmount = investmentAmount * 0.18;
+    const maturityDate = new Date();
     const tenureInMonths = parseInt(plan.tenureOptions[plan.tenureOptions.length - 1]);
     const tenureInYears = tenureInMonths / 12;
+    maturityDate.setMonth(maturityDate.getMonth() + tenureInMonths);
 
     const principal = investmentAmount;
     const rate = plan.apy / 100;
     const n = 12;
     const t = tenureInYears;
+    const maturityAmount = principal * Math.pow((1 + rate / n), n * t);
+    const totalReturns = maturityAmount - principal;
 
-    const taxAmount = principal * Math.pow(1 + rate / n, n * t) - principal;
-    const maturityAmount = investmentAmount + taxAmount;
-    const totalReturns = maturityAmount - investmentAmount;
-
-    const endDate = new Date();
-    endDate.setMonth(endDate.getMonth() + tenureInMonths);
-
-    // Optional: Save the investment record
-    const newInvestment = await Investment.create({
-      user: userId,
-      plan: plan._id,
+    // Create investment
+    const investment = await Investment.create({
+      user: user._id,
+      plan: planId,
       planName: plan.name,
       units,
       amount: investmentAmount,
       TAXAmount: taxAmount,
       apr: plan.apy,
-      startDate: new Date(),
-      endDate,
-      maturityAmount,
-      totalReturns,
-      paymentMethod,
-      paymentDetails
-    });
-
-    return res.status(200).json({
-      success: true,
-      message: "Investment calculated and saved successfully",
-      investment: newInvestment
-    });
-
-  } catch (err) {
-    console.error("Error in calculation:", err);
-    return res.status(500).json({ success: false, message: "Server error" });
-  }
-});
-// invest now options clicked api for that
-router.post("/investments/create", protect, async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const { planId, units } = req.body;
-
-    // Validate required fields
-    if (!planId || !units || units <= 0) {
-      return res.status(400).json({ success: false, message: "Plan ID and a valid number of units are required" });
-    }
-
-    // Fetch the investment plan
-    const plan = await Plan.findById(planId);
-    if (!plan || !plan.isActive) {
-      return res.status(404).json({ success: false, message: "Plan not found or inactive" });
-    }
-
-    // Calculate investment amount
-    const investmentAmount = units * plan.minInvestment;
-
-    // Fetch user details
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ success: false, message: "User not found" });
-    }
-       // ✅ KYC approval check
-       if (!user.kycStats=='verified') {
-        return res.status(403).json({ success: false, message: "KYC not approved. You cannot invest until your KYC is approved by admin." });
-      }
-  
-  
-    // Check if user has enough wallet balance
-    if (user.walletBalance < investmentAmount) {
-      return res.status(400).json({ success: false, message: "Insufficient wallet balance" });
-    }
-
-    // Calculate maturity date based on tenure
-    const tenureInMonths = parseInt(plan.tenureOptions[plan.tenureOptions.length - 1]); // Get last tenure option
-    const tenureInYears = tenureInMonths / 12;
-    const maturityDate = new Date();
-    maturityDate.setMonth(maturityDate.getMonth() + tenureInMonths);
-
-    // Compound Interest Calculation
-    const principal = investmentAmount;
-    const rate = plan.apy / 100; // Convert APY to decimal
-    const n = 12; // Assuming monthly compounding
-    const t = tenureInYears;
-
-    const totalTaxAmount = principal * Math.pow(1 + rate / n, n * t);
-    const maturityAmount = investmentAmount + totalTaxAmount + (investmentAmount * (plan.apy / 100));
-
-    // Corrected Total Returns (Profit Only)
-    const totalReturns = maturityAmount - investmentAmount;
-
-    // Fetch existing investments and calculate total investments
-    const userInvestments = await Investment.find({ user: userId });
-const totalInvestments = userInvestments.reduce((sum, inv) => sum + inv.maturityAmount, 0) + parseFloat(maturityAmount);
-    console.log("total investments ", totalInvestments);
-    const currentInvested = userInvestments.reduce((sum, inv) => sum + inv.amount, 0) + investmentAmount;
-    console.log("curent"+currentInvested,)
-    // Create new investment record
-    const newInvestment = new Investment({
-      user: userId,
-      plan: planId,
-      planName: plan.name,
-      amount: investmentAmount,
-      TAXAmount : totalTaxAmount,
-      units,
-      apr: plan.apy,
-      startDate: new Date(),
       endDate: maturityDate,
-      totalReturns : totalReturns,
-      totalInvestments,
-      maturityAmount: maturityAmount.toFixed(2), // Round off for better readability
-      payoutFrequency: plan.paymentOptions[0], // Default to first option
-      status: "active" // Change to "active" after admin approval (if required)
+      maturityAmount: parseFloat(maturityAmount.toFixed(2)),
+      totalReturns: parseFloat(totalReturns.toFixed(2)),
+      status: "active"
+    });
+    await PaymentRequest.create({
+      user: user._id,
+      bankName: "Wallet Balance",
+      amount: totalAmountPayable,
+      transactionId: `INV-${Date.now()}-${Math.floor(Math.random() * 10000)}`, // More unique
+      status: "approved", // This is a system-generated deduction
+      isCredited: false,
+      wallet: user.walletBalance,
+      relatedInvestment: investment._id
     });
 
-    await newInvestment.save();
-    console.log("wallet"+" "+user.walletBalance);
-    // Deduct from user's wallet
-    user.walletBalance = Number(user.walletBalance) - Number(investmentAmount);
-    console.log("wallet balance", user.walletBalance)
-    user.totalInvestment = Number(user.totalInvestment) - Number(investmentAmount);
-    await user.save();
-
-    res.status(200).json({ 
-      success: true, 
-      message: "Investment successful!", 
-      totalInvestments,
-      currentInvested: investmentAmount,
-      totalReturns,
-    
-      investment: newInvestment,
-      newInvestment
+    res.status(201).json({
+      success: true,
+      message: "Investment successful",
+      investment,
+      walletBalance: user.walletBalance
     });
-
   } catch (error) {
-    console.error("Error in investment:", error);
-    res.status(500).json({ success: false, error: error.message });
+    console.error("Investment confirm error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
+// GET /api/transactions/investments
+router.get("/transactions/investments", protect, async (req, res) => {
+  try {
+    const transactions = await PaymentRequest.find({
+      user: req.user._id,
+      relatedInvestment: { $ne: null }
+    })
+      .populate("relatedInvestment", "planName amount endDate maturityAmount status") // Optional: include details from Investment
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      transactions
+    });
+  } catch (error) {
+    console.error("Error fetching investment transactions:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
 router.get("/investments/stats", protect, async (req, res) => {
   try {
     const userId = req.user.id;
@@ -591,6 +556,7 @@ router.get("/investments/stats", protect, async (req, res) => {
   }
 });
 // get investments according to the user 
+
 // router.get("/investments", protect, async (req, res) => {
 //     try {
 //       const userId = req.user.id; // Get user ID from token (middleware handles this)
@@ -714,29 +680,37 @@ function calculateInvestmentSchedule(principal, apy, tenureMonths) {
         totalMonthlyReturns
     };
 }
+// Generate and download route combined
 router.get('/:investmentId/schedule/pdf/view', protect, async (req, res) => {
   try {
     const investmentId = req.params.investmentId;
     const pdfFileName = `investment_schedule_${investmentId}.pdf`;
-    const pdfFilePath = path.join(__dirname, '../downloads', pdfFileName);
+    const pdfFilePath = path.resolve(__dirname, '../downloads', pdfFileName);
 
     if (!fs.existsSync(pdfFilePath)) {
-      return res.status(404).json({ success: false, message: "PDF not found. Please generate it first." });
+      return res.status(404).json({
+        success: false,
+        message: "PDF not found. Please generate it first."
+      });
     }
 
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'inline; filename=' + pdfFileName);
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `inline; filename="${pdfFileName}"`
+    });
 
-    const fileStream = fs.createReadStream(pdfFilePath);
-    fileStream.pipe(res);
+    fs.createReadStream(pdfFilePath).pipe(res);
 
   } catch (error) {
     console.error("Error displaying PDF:", error);
-    res.status(500).json({ success: false, message: "Server Error" });
+    res.status(500).json({
+      success: false,
+      message: "Server Error while displaying PDF"
+    });
   }
 });
 // download the investments according to the units
-router.get('/:investmentId/schedule/pdf/generate', protect, async (req, res) => {
+router.get('/:investmentId/schedule/pdf/generate-download', protect, async (req, res) => {
   try {
     const investment = await Investment.findById(req.params.investmentId).populate('plan');
 
@@ -747,7 +721,6 @@ router.get('/:investmentId/schedule/pdf/generate', protect, async (req, res) => 
     const { amount, startDate, endDate, plan } = investment;
     const { apy, minInvestment, tenureOptions, name } = plan;
 
-    // 🔹 Calculate financial values
     const units = amount / minInvestment;
     const monthlyRate = apy / 12 / 100;
     const monthlyInterestPerUnit = minInvestment * monthlyRate;
@@ -755,29 +728,23 @@ router.get('/:investmentId/schedule/pdf/generate', protect, async (req, res) => 
     const totalProfit = (amount * apy) / 100;
     const totalMaturityAmount = amount + totalProfit;
 
-    // 🔹 Format dates
     const formattedStartDate = new Date(startDate).toLocaleDateString();
     const formattedEndDate = new Date(endDate).toLocaleDateString();
 
-    // 🔹 Define PDF file path
     const pdfFileName = `investment_schedule_${investment._id}.pdf`;
-    const downloadDir = path.join(__dirname, '../downloads');
+    const downloadDir = path.resolve(__dirname, '../downloads');
     const pdfFilePath = path.join(downloadDir, pdfFileName);
 
-    // Ensure the downloads directory exists
     if (!fs.existsSync(downloadDir)) {
       fs.mkdirSync(downloadDir, { recursive: true });
     }
 
-    // 🔹 Create PDF
     const doc = new PDFDocument({ margin: 30, size: "A4", layout: "landscape" });
     const writeStream = fs.createWriteStream(pdfFilePath);
     doc.pipe(writeStream);
 
-    // 🔹 PDF Title
     doc.fontSize(16).text('Investment Schedule', { align: 'center' }).moveDown();
 
-    // 🔹 Define Column Headers & Data
     const columnHeaders = [
       "Plan Name", "Start Date", "End Date", "Tenure", "Investment",
       "Units", "APY", "Monthly Interest/Unit", "Total Monthly Interest",
@@ -791,45 +758,24 @@ router.get('/:investmentId/schedule/pdf/generate', protect, async (req, res) => 
       `₹${totalProfit.toFixed(2)}`, `₹${totalMaturityAmount.toFixed(2)}`
     ];
 
-    // 🔹 Generate Column Table
     generateColumnTable(doc, columnHeaders, columnData);
 
     doc.end();
 
-    // 🔹 Wait for file to be written, then respond with download link
     writeStream.on('finish', () => {
-      res.json({
-        success: true,
-        message: "PDF generated successfully",
-        downloadUrl: `/api/investments/${investment._id}/schedule/pdf/download`
+      res.setHeader('Content-Disposition', `inline; filename="${pdfFileName}"`);
+      res.setHeader('Content-Type', 'application/pdf');
+
+      res.download(pdfFilePath, pdfFileName, (err) => {
+        if (err) {
+          console.error("Error downloading PDF:", err);
+          res.status(500).json({ success: false, message: "Error downloading PDF" });
+        }
       });
     });
 
   } catch (error) {
-    console.error("Error generating investment schedule PDF:", error);
-    res.status(500).json({ success: false, message: "Server Error" });
-  }
-});
-// 🔹 API 2: Download PDF
-router.get('/:investmentId/schedule/pdf/download', protect, async (req, res) => {
-  try {
-    const investmentId = req.params.investmentId;
-    const pdfFileName = `investment_schedule_${investmentId}.pdf`;
-    const pdfFilePath = path.join(__dirname, '../downloads', pdfFileName);
-
-    if (!fs.existsSync(pdfFilePath)) {
-      return res.status(404).json({ success: false, message: "PDF not found. Please generate it first." });
-    }
-
-    res.download(pdfFilePath, pdfFileName, (err) => {
-      if (err) {
-        console.error("Error downloading PDF:", err);
-        res.status(500).json({ success: false, message: "Error downloading PDF" });
-      }
-    });
-
-  } catch (error) {
-    console.error("Error in download API:", error);
+    console.error("Error generating and downloading PDF:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 });
@@ -853,6 +799,72 @@ function generateColumnTable(doc, headers, data) {
 
   doc.moveDown();
 }
+router.get('/:investmentId/schedule/excel/generate-download', protect, async (req, res) => {
+  try {
+    const investment = await Investment.findById(req.params.investmentId).populate('plan');
+
+    if (!investment) {
+      return res.status(404).json({ success: false, message: "Investment not found" });
+    }
+
+    const { amount, startDate, endDate, plan } = investment;
+    const { apy, minInvestment, tenureOptions, name } = plan;
+
+    const units = amount / minInvestment;
+    const monthlyRate = apy / 12 / 100;
+    const monthlyInterestPerUnit = minInvestment * monthlyRate;
+    const totalMonthlyInterest = monthlyInterestPerUnit * units;
+    const totalProfit = (amount * apy) / 100;
+    const totalMaturityAmount = amount + totalProfit;
+
+    const formattedStartDate = new Date(startDate).toLocaleDateString();
+    const formattedEndDate = new Date(endDate).toLocaleDateString();
+
+    const excelFileName = `investment_schedule_${investment._id}.xlsx`;
+    const downloadDir = path.resolve(__dirname, '../downloads');
+    const excelFilePath = path.join(downloadDir, excelFileName);
+
+    if (!fs.existsSync(downloadDir)) {
+      fs.mkdirSync(downloadDir, { recursive: true });
+    }
+
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Investment Schedule');
+
+    const columnHeaders = [
+      "Plan Name", "Start Date", "End Date", "Tenure", "Investment",
+      "Units", "APY", "Monthly Interest/Unit", "Total Monthly Interest",
+      "Total Profit", "Maturity Amount"
+    ];
+
+    const columnData = [
+      name, formattedStartDate, formattedEndDate, tenureOptions[0],
+      `₹${amount.toFixed(2)}`, units.toFixed(2), `${apy}%`,
+      `₹${monthlyInterestPerUnit.toFixed(2)}`, `₹${totalMonthlyInterest.toFixed(2)}`,
+      `₹${totalProfit.toFixed(2)}`, `₹${totalMaturityAmount.toFixed(2)}`
+    ];
+
+    // Add headers and data
+    sheet.addRow(columnHeaders);
+    sheet.addRow(columnData);
+
+    // Optional: style headers
+    sheet.getRow(1).font = { bold: true };
+
+    await workbook.xlsx.writeFile(excelFilePath);
+
+    res.download(excelFilePath, excelFileName, (err) => {
+      if (err) {
+        console.error("Error downloading Excel file:", err);
+        res.status(500).json({ success: false, message: "Error downloading Excel file" });
+      }
+    });
+
+  } catch (error) {
+    console.error("Error generating and downloading Excel:", error);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+});
 // faqs of the users 
 router.get("/faq", async (req, res) => {
     try {

@@ -14,7 +14,6 @@ const OTPStore = new Map(); // Temporary store for OTPs
 const mongoose = require("mongoose");
 const Investment = require('../models/Investment'); 
 const User = require('../models/User');
-const Transaction = require('../models/Transaction');
 const ADMIN_EMAIL = "sunidhi@gmail.com";
 const ADMIN_PHONE = "1234567890"; // Optional
 const ADMIN_OTP = "0000";

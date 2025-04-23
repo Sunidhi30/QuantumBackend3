@@ -36,6 +36,10 @@ const paymentRequestSchema = new mongoose.Schema({
   proofImage: {
     type: String // Optional: for payment proof upload
   },
+  relatedInvestment: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Investment'
+  },
   wallet: {
     type: Number,
     default: 0,  // Wallet balance starts at 0

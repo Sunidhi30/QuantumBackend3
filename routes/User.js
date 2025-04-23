@@ -6,6 +6,7 @@ const User = require("../models/User"); // Ensure correct path
 const { uploadToCloudinary } = require("../utils/cloudinary");
 const {uploadsCloudinary}= require("../utils/cloudinary");
 const multer = require("multer");
+const streamBuffers = require("stream-buffers");
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 const Investment = require("../models/Investment");
@@ -424,7 +425,169 @@ router.post("/investments/calculate", protect, async (req, res) => {
     });
   }
 });
+// generate the pdf of the calculated one 
 
+
+router.post("/investments/pdf-view", async (req, res) => {
+  try {
+    const { planId, units } = req.body;
+
+    if (!planId || !units || units <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Plan ID and a valid number of units are required",
+      });
+    }
+
+    const plan = await Plan.findById(planId);
+    if (!plan || !plan.isActive) {
+      return res.status(404).json({
+        success: false,
+        message: "Plan not found or inactive",
+      });
+    }
+
+    const investmentAmount = units * plan.minInvestment;
+    const rate = plan.apy / 100;
+    const tenureInMonths = parseInt(plan.tenureOptions[plan.tenureOptions.length - 1]);
+    const tenureInYears = tenureInMonths / 12;
+    const n = 12;
+    const t = tenureInYears;
+    const maturityAmount = investmentAmount * Math.pow((1 + rate / n), n * t);
+    const totalReturns = maturityAmount - investmentAmount;
+    const interest = totalReturns.toFixed(2);
+    const principal = investmentAmount.toFixed(2);
+    const total = maturityAmount.toFixed(2);
+    const date = new Date().toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+
+    // === Directly stream PDF to browser ===
+    const doc = new PDFDocument({ margin: 50 });
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", "inline; filename=investment_preview.pdf");
+    // res.setHeader("Content-Disposition", "attachment; filename=investment_preview.pdf");
+
+    doc.pipe(res); // Stream PDF to response
+
+    // PDF content
+    doc.image("images/image.png", 50, 50, { width: 50, height: 50 });
+    doc.font("Helvetica-Bold").fontSize(34).text("Visualise Returns", { align: "center" });
+    doc.moveDown(2);
+
+    const tableTop = doc.y;
+    const columnPositions = {
+      date: 50,
+      principal: 180,
+      interest: 310,
+      total: 440,
+    };
+
+    doc.font("Helvetica-Bold").fontSize(12)
+      .text("Date", columnPositions.date, tableTop)
+      .text("Principal", columnPositions.principal, tableTop)
+      .text("Interest", columnPositions.interest, tableTop)
+      .text("Total Returns", columnPositions.total, tableTop);
+
+    doc.font("Helvetica").fontSize(12)
+      .text(date, columnPositions.date, tableTop + 25)
+      .text(`₹${principal}`, columnPositions.principal, tableTop + 25)
+      .text(`₹${interest}`, columnPositions.interest, tableTop + 25)
+      .text(`₹${total}`, columnPositions.total, tableTop + 25);
+
+    doc.end(); // Finish writing and stream
+
+  } catch (error) {
+    console.error("Error generating PDF:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to generate PDF",
+      error: error.message,
+    });
+  }
+});
+router.post("/investments/pdf", async (req, res) => {
+  try {
+    const { planId, units } = req.body;
+
+    if (!planId || !units || units <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Plan ID and a valid number of units are required",
+      });
+    }
+
+    const plan = await Plan.findById(planId);
+    if (!plan || !plan.isActive) {
+      return res.status(404).json({
+        success: false,
+        message: "Plan not found or inactive",
+      });
+    }
+
+    const investmentAmount = units * plan.minInvestment;
+    const rate = plan.apy / 100;
+    const tenureInMonths = parseInt(plan.tenureOptions[plan.tenureOptions.length - 1]);
+    const tenureInYears = tenureInMonths / 12;
+    const n = 12;
+    const t = tenureInYears;
+    const maturityAmount = investmentAmount * Math.pow((1 + rate / n), n * t);
+    const totalReturns = maturityAmount - investmentAmount;
+    const interest = totalReturns.toFixed(2);
+    const principal = investmentAmount.toFixed(2);
+    const total = maturityAmount.toFixed(2);
+    const date = new Date().toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+
+    // === Directly stream PDF to browser ===
+    const doc = new PDFDocument({ margin: 50 });
+    res.setHeader("Content-Type", "application/pdf");
+    // res.setHeader("Content-Disposition", "inline; filename=investment_preview.pdf");
+    res.setHeader("Content-Disposition", "attachment; filename=investment_preview.pdf");
+
+    doc.pipe(res); // Stream PDF to response
+
+    // PDF content
+    doc.image("images/image.png", 50, 50, { width: 50, height: 50 });
+    doc.font("Helvetica-Bold").fontSize(34).text("Visualise Returns", { align: "center" });
+    doc.moveDown(2);
+
+    const tableTop = doc.y;
+    const columnPositions = {
+      date: 50,
+      principal: 180,
+      interest: 310,
+      total: 440,
+    };
+
+    doc.font("Helvetica-Bold").fontSize(12)
+      .text("Date", columnPositions.date, tableTop)
+      .text("Principal", columnPositions.principal, tableTop)
+      .text("Interest", columnPositions.interest, tableTop)
+      .text("Total Returns", columnPositions.total, tableTop);
+
+    doc.font("Helvetica").fontSize(12)
+      .text(date, columnPositions.date, tableTop + 25)
+      .text(`₹${principal}`, columnPositions.principal, tableTop + 25)
+      .text(`₹${interest}`, columnPositions.interest, tableTop + 25)
+      .text(`₹${total}`, columnPositions.total, tableTop + 25);
+
+    doc.end(); // Finish writing and stream
+
+  } catch (error) {
+    console.error("Error generating PDF:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to generate PDF",
+      error: error.message,
+    });
+  }
+});
 // Now, let's update the investment creation endpoint to use the calculated values
 router.post("/investments/confirm", protect, async (req, res) => {
   try {
@@ -656,37 +819,37 @@ function calculateInvestmentSchedule(principal, apy, tenureMonths) {
     };
 }
 // Generate and download route combined
-router.get('/:investmentId/schedule/pdf/view-download', async (req, res) => {
+// router.get('/:investmentId/schedule/pdf/view-download', async (req, res) => {
   
-  try {
-    const investmentId = req.params.investmentId;
-    const pdfFileName = `investment_schedule_${investmentId}.pdf`;
-    const pdfFilePath = path.resolve(__dirname, '../downloads', pdfFileName);
-    console.log("Saved PDF path:", path.resolve(__dirname, '../downloads', `investment_schedule_${investmentId}.pdf`));
+//   try {
+//     const investmentId = req.params.investmentId;
+//     const pdfFileName = `investment_schedule_${investmentId}.pdf`;
+//     const pdfFilePath = path.resolve(__dirname, '../downloads', pdfFileName);
+//     console.log("Saved PDF path:", path.resolve(__dirname, '../downloads', `investment_schedule_${investmentId}.pdf`));
 
-    console.log(" pdfFilePath "+" "+ pdfFilePath )
-    if (!fs.existsSync(pdfFilePath)) {
-      return res.status(404).json({
-        success: false,
-        message: "PDF not found. Please generate it first."
-      });
-    }
+//     console.log(" pdfFilePath "+" "+ pdfFilePath )
+//     if (!fs.existsSync(pdfFilePath)) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "PDF not found. Please generate it first."
+//       });
+//     }
 
-    res.set({
-      'Content-Type': 'application/pdf',
-      'Content-Disposition': `inline; filename="${pdfFileName}"`
-    });
+//     res.set({
+//       'Content-Type': 'application/pdf',
+//       'Content-Disposition': `inline; filename="${pdfFileName}"`
+//     });
 
-    fs.createReadStream(pdfFilePath).pipe(res);
+//     fs.createReadStream(pdfFilePath).pipe(res);
 
-  } catch (error) {
-    console.error("Error displaying PDF:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server Error while displaying PDF"
-    });
-  }
-});
+//   } catch (error) {
+//     console.error("Error displaying PDF:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: "Server Error while displaying PDF"
+//     });
+//   }
+// });
 // 🔹 Function to generate columns
 function generateColumnTable(doc, headers, data) {
   let startX = 50;

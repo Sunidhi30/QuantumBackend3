@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Test PDF Download & View</title>
+</head>
+<body>
+  <h2>Investment PDF Preview</h2>
+
+  <button onclick="downloadPDF()">Download PDF</button>
+  <button onclick="viewPDF()">View PDF</button>
+
+  <script>
+    async function downloadPDF() {
+      const response = await fetch('/api/users/investments/pdf', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          planId: '67fd50841ad576daf5e3e720', // Replace with actual ID
+          units: 3
+        })
+      });
+
+      if (!response.ok) {
+        alert("Failed to generate PDF");
+        return;
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'investment_preview.pdf';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    }
+
+    async function viewPDF() {
+      const response = await fetch('/api/users/investments/pdf-view', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          planId: '67fd50841ad576daf5e3e720', // Same plan ID
+          units: 3
+        })
+      });
+
+      if (!response.ok) {
+        alert("Failed to generate PDF");
+        return;
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+
+      window.open(url, '_blank'); // Open in a new tab
+    }
+  </script>
+</body>
+</html>

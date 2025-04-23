@@ -17,67 +17,16 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 // Set the view engine to EJS
 app.set('view engine', 'ejs');
-
 // Set the directory for EJS views
 app.set('views', path.join(__dirname, 'views'));
-
-// Route to view PDF inline
-app.get('/api/users/:investmentId/schedule/pdf/view', (req, res) => {
-  const { investmentId } = req.params;
-  const pdfFileName = `investment_schedule_${investmentId}.pdf`;
-  // const pdfFilePath = path.resolve(__dirname,'downloads', pdfFileName);
-  const cleanDirname = __dirname.trim();
-
-  const pdfFilePath = path.join(cleanDirname, 'downloads', pdfFileName);
-   
-  console.log("DIRNAME:", `"${__dirname}"`);
-
-   console.log("pdfFilePath"+" "+pdfFilePath);
-  if (!fs.existsSync(pdfFilePath)) {
-    return res.status(404).json({
-      success: false,
-      message: "PDF not found. Please generate it first."
-    });
-  }
-  res.set({
-    'Content-Type': 'application/pdf',
-    'Content-Disposition': `inline; filename="${pdfFileName}"`
-  });
-
-  fs.createReadStream(pdfFilePath).pipe(res);
-});
-// Route to download the investment schedule as an Excel file
-// Route to view Excel inline
-app.get('/api/users/:investmentId/schedule/excel/view', async (req, res) => {
-  try {
-    const { investmentId } = req.params;
-    const excelFileName = `investment_schedule_${investmentId}.xlsx`;
-    const excelFilePath = path.resolve(__dirname, 'downloads', excelFileName);
-
-    if (!fs.existsSync(excelFilePath)) {
-      return res.status(404).json({
-        success: false,
-        message: "Excel file not found. Please generate it first."
-      });
-    }
-
-    res.set({
-      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'Content-Disposition': `inline; filename="${excelFileName}"`
-    });
-
-    fs.createReadStream(excelFilePath).pipe(res);
-  } catch (error) {
-    console.error("Error viewing Excel file:", error);
-    res.status(500).json({ success: false, message: "Server Error" });
-  }
-});
-
 require('dotenv').config()
 app.use(cors());
 const PORT = process.env.PORT || 6000;
 app.get("/", (req, res) => {
     res.sendFile(__dirname + "/testing.html");
+})
+app.get("/testing", (req, res) => {
+  res.sendFile(__dirname + "/testingpdf.html");
 })
 // app.use("/api/users",userRoutes)
 app.use("/api/auth",authRoutes)

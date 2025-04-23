@@ -174,6 +174,7 @@ router.post('/verify-otp', async (req, res) => {
     
     res.json({ 
       success: true,
+      kycStatus: newUser.kycStatus,
       message: 'Email verified successfully. You can now proceed with the next step.',
       nextStep: 'complete-registration' 
     });
@@ -228,7 +229,7 @@ router.post('/verify-user-login-otp', async (req, res) => {
 
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '24h' });
 
-    res.json({ success: true, msg: 'Login successful', token, user });
+    res.json({ success: true, msg: 'Login successful', token, user,kycStatus: user.kycStatus });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, msg: 'Server error' });

@@ -114,6 +114,9 @@
 //   });
 // };
 // module.exports = { uploadToCloudinary};
+
+
+
 const cloudinary = require("cloudinary").v2;
 require("dotenv").config();
 
@@ -123,48 +126,78 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-const uploadToCloudinary = async (fileBuffer, folder, mimetype, forDisplay = false) => {
+// const uploadToCloudinary = async (fileBuffer, folder, mimetype, forDisplay = false) => {
+//   return new Promise((resolve, reject) => {
+//     // Determine resource_type based on mimetype
+//     let resourceType = "auto";
+//     if (mimetype.startsWith("image")) {
+//       resourceType = "image";
+//     } else if (mimetype === "application/pdf") {
+//       resourceType = "raw";
+//     }
+    
+//     const uploadOptions = {
+//       folder: folder,
+//       resource_type: resourceType,
+//     };
+    
+//     // For PDFs that should be displayed in browser
+//     if (forDisplay && mimetype === "application/pdf") {
+//       // This is the critical part - adding these options to make PDFs display in browser
+//       uploadOptions.flags = "attachment:false";
+//       uploadOptions.format = "pdf";  // Ensure it stays as PDF
+//     }
+    
+//     const stream = cloudinary.uploader.upload_stream(
+//       uploadOptions,
+//       (error, result) => {
+//         if (error) {
+//           reject(new Error("Cloudinary upload failed: " + error.message));
+//         } else {
+//           // For PDFs that should be displayed in browser, modify the URL if needed
+//           if (forDisplay && mimetype === "application/pdf") {
+//             // Make sure the URL doesn't contain fl_attachment
+//             let modifiedUrl = result.secure_url;
+//             if (modifiedUrl.includes("fl_attachment")) {
+//               modifiedUrl = modifiedUrl.replace(/fl_attachment(:[^\/]*)?\//i, "");
+//             }
+//             resolve(modifiedUrl);
+//           } else {
+//             resolve(result.secure_url);
+//           }
+//         }
+//       }
+//     );
+//     stream.end(fileBuffer);
+//   });
+// };
+const uploadToCloudinary = async (fileBuffer, folder, mimetype) => {
   return new Promise((resolve, reject) => {
-    // Determine resource_type based on mimetype
-    let resourceType = "auto";
-    if (mimetype.startsWith("image")) {
-      resourceType = "image";
-    } else if (mimetype === "application/pdf") {
-      resourceType = "raw";
-    }
+    // For PDFs, always use raw resource type
+    const resourceType = mimetype === "application/pdf" ? "raw" : "auto";
     
     const uploadOptions = {
       folder: folder,
       resource_type: resourceType,
+      // Ensure public access
+      access_mode: "public",
+      type: "upload"
     };
-    
-    // For PDFs that should be displayed in browser
-    if (forDisplay && mimetype === "application/pdf") {
-      // This is the critical part - adding these options to make PDFs display in browser
-      uploadOptions.flags = "attachment:false";
-      uploadOptions.format = "pdf";  // Ensure it stays as PDF
-    }
     
     const stream = cloudinary.uploader.upload_stream(
       uploadOptions,
       (error, result) => {
         if (error) {
+          console.error("Cloudinary upload error:", error);
           reject(new Error("Cloudinary upload failed: " + error.message));
         } else {
-          // For PDFs that should be displayed in browser, modify the URL if needed
-          if (forDisplay && mimetype === "application/pdf") {
-            // Make sure the URL doesn't contain fl_attachment
-            let modifiedUrl = result.secure_url;
-            if (modifiedUrl.includes("fl_attachment")) {
-              modifiedUrl = modifiedUrl.replace(/fl_attachment(:[^\/]*)?\//i, "");
-            }
-            resolve(modifiedUrl);
-          } else {
-            resolve(result.secure_url);
-          }
+          console.log("Cloudinary upload result:", result);
+          // Return the secure URL directly
+          resolve(result.secure_url);
         }
       }
     );
+    
     stream.end(fileBuffer);
   });
 };

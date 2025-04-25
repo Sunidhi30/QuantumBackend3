@@ -1,11 +1,14 @@
 const express = require("express");
 const router = express.Router();
+const axios = require('axios');
 const cloudinary = require("cloudinary");
+const { Readable } = require('stream');
+const streamifier = require('streamifier');
 const Plan = require("../models/Plan"); // Import Plan model
 const { protect } = require("../middlewares/authMiddlewares"); // Only authentication required
 const User = require("../models/User"); // Ensure correct path
 const { uploadToCloudinary } = require("../utils/cloudinary");
-const {uploadsCloudinary}= require("../utils/cloudinary");
+// const {uploadsCloudinary}= require("../utils/cloudinary");
 const multer = require("multer");
 const streamBuffers = require("stream-buffers");
 const storage = multer.memoryStorage();
@@ -586,15 +589,16 @@ router.post("/investments/pdf", async (req, res) => {
     });
   }
 });
-// upload the pdf to cloudinary 
-router.post("/investments/newpdf", async (req, res) => {
+
+// Create folder if not exists
+router.post('/users/investments/pdf', async (req, res) => {
   try {
-    const { planId, units } = req.body;
+    const { planId, units, action } = req.body;
 
     if (!planId || !units || units <= 0) {
       return res.status(400).json({
         success: false,
-        message: "Plan ID and a valid number of units are required",
+        message: 'Plan ID and a valid number of units are required',
       });
     }
 
@@ -602,96 +606,58 @@ router.post("/investments/newpdf", async (req, res) => {
     if (!plan || !plan.isActive) {
       return res.status(404).json({
         success: false,
-        message: "Plan not found or inactive",
+        message: 'Plan not found or inactive',
       });
     }
 
     const investmentAmount = units * plan.minInvestment;
     const rate = plan.apy / 100;
-    const tenureInMonths = parseInt(plan.tenureOptions[plan.tenureOptions.length - 1]);
+    const tenureOption = plan.tenureOptions[plan.tenureOptions.length - 1];
+    const tenureInMonths = parseInt(tenureOption);
     const tenureInYears = tenureInMonths / 12;
     const n = 12;
     const t = tenureInYears;
-    const maturityAmount = investmentAmount * Math.pow((1 + rate / n), n * t);
+    const maturityAmount = investmentAmount * Math.pow(1 + rate / n, n * t);
     const totalReturns = maturityAmount - investmentAmount;
     const interest = totalReturns.toFixed(2);
     const principal = investmentAmount.toFixed(2);
     const total = maturityAmount.toFixed(2);
-    const date = new Date().toLocaleDateString("en-IN", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
+    const date = new Date().toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
     });
 
-    // === Generate PDF and save to Cloudinary ===
     const doc = new PDFDocument({ margin: 50 });
-    
-    // Create a temporary file to save the generated PDF
-    const fs = require('fs');
-    const tempPdfPath = './temp-investment-preview.pdf';
-    doc.pipe(fs.createWriteStream(tempPdfPath)); // Save the PDF to a file
+    res.setHeader('Content-Type', 'application/pdf');
+    if (action === 'view') {
+      res.setHeader('Content-Disposition', 'inline; filename=investment_preview.pdf');
+    } else {
+      res.setHeader('Content-Disposition', 'attachment; filename=investment_preview.pdf');
+    }
 
-    // PDF content
-    doc.image("images/image.png", 50, 50, { width: 50, height: 50 });
-    doc.font("Helvetica-Bold").fontSize(34).text("Visualise Returns", { align: "center" });
-    doc.moveDown(2);
+    doc.pipe(res);
 
-    const tableTop = doc.y;
-    const columnPositions = {
-      date: 50,
-      principal: 180,
-      interest: 310,
-      total: 440,
-    };
+    doc.font('Helvetica-Bold').fontSize(20).text('Investment Summary', { align: 'center' });
+    doc.moveDown();
+    doc.font('Helvetica').fontSize(12).text(`Date: ${date}`);
+    doc.text(`Plan Name: ${plan.name}`);
+    doc.text(`Units: ${units}`);
+    doc.text(`Principal: ₹${principal}`);
+    doc.text(`Interest: ₹${interest}`);
+    doc.text(`Total Returns: ₹${total}`);
 
-    doc.font("Helvetica-Bold").fontSize(12)
-      .text("Date", columnPositions.date, tableTop)
-      .text("Principal", columnPositions.principal, tableTop)
-      .text("Interest", columnPositions.interest, tableTop)
-      .text("Total Returns", columnPositions.total, tableTop);
-
-    doc.font("Helvetica").fontSize(12)
-      .text(date, columnPositions.date, tableTop + 25)
-      .text(`₹${principal}`, columnPositions.principal, tableTop + 25)
-      .text(`₹${interest}`, columnPositions.interest, tableTop + 25)
-      .text(`₹${total}`, columnPositions.total, tableTop + 25);
-
-    doc.end(); // Finish writing PDF
-
-    // Upload the generated PDF to Cloudinary
-    cloudinary.uploader.upload(tempPdfPath, { resource_type: 'raw' }, async (error, result) => {
-      if (error) {
-        console.error("Error uploading PDF to Cloudinary:", error);
-        return res.status(500).json({
-          success: false,
-          message: "Failed to upload PDF to Cloudinary",
-        });
-      }
-
-      // Save the PDF URL in the database (Plan document)
-      plan.pdfUrl = result.secure_url; // URL returned by Cloudinary
-      await plan.save(); // Save the updated Plan document
-
-      // Respond with the PDF URL
-      res.json({
-        success: true,
-        message: "PDF generated and uploaded successfully",
-        pdfUrl: result.secure_url, // Returning the Cloudinary URL
-      });
-
-      // Clean up temporary file
-      fs.unlinkSync(tempPdfPath); // Remove the temporary PDF file
-    });
-
+    doc.end();
   } catch (error) {
-    console.error("Error generating PDF:", error);
+    console.error('Error generating PDF:', error);
     res.status(500).json({
       success: false,
-      message: "Failed to generate PDF",
+      message: 'Failed to generate PDF',
       error: error.message,
     });
   }
 });
+
 // Now, let's update the investment creation endpoint to use the calculated values
 router.post("/investments/confirm", protect, async (req, res) => {
   try {
@@ -954,25 +920,25 @@ function calculateInvestmentSchedule(principal, apy, tenureMonths) {
 //   }
 // });
 // 🔹 Function to generate columns
-function generateColumnTable(doc, headers, data) {
-  let startX = 50;
-  const startY = doc.y + 20;
-  const columnWidth = 110;
-  const rowHeight = 25;
+// function generateColumnTable(doc, headers, data) {
+//   let startX = 50;
+//   const startY = doc.y + 20;
+//   const columnWidth = 110;
+//   const rowHeight = 25;
 
-  doc.font("Helvetica-Bold").fontSize(9);
-  headers.forEach((header, index) => {
-      doc.text(header, startX + index * columnWidth, startY, { width: columnWidth, align: "left" });
-  });
+//   doc.font("Helvetica-Bold").fontSize(9);
+//   headers.forEach((header, index) => {
+//       doc.text(header, startX + index * columnWidth, startY, { width: columnWidth, align: "left" });
+//   });
 
-  doc.font("Helvetica").fontSize(9);
-  const dataY = startY + rowHeight;
-  data.forEach((value, index) => {
-      doc.text(value, startX + index * columnWidth, dataY, { width: columnWidth, align: "left" });
-  });
+//   doc.font("Helvetica").fontSize(9);
+//   const dataY = startY + rowHeight;
+//   data.forEach((value, index) => {
+//       doc.text(value, startX + index * columnWidth, dataY, { width: columnWidth, align: "left" });
+//   });
 
-  doc.moveDown();
-}
+//   doc.moveDown();
+// }
 router.get('/:investmentId/schedule/excel/generate-download', protect, async (req, res) => {
   try {
     const investment = await Investment.findById(req.params.investmentId).populate('plan');
@@ -1301,6 +1267,7 @@ router.post('/withdraw', protect, checkSufficientBalance, [
   }
   try {
     const user = await User.findById(req.user.id);
+    console.log("user"+user.id);
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
@@ -1466,4 +1433,266 @@ router.get('/support', async (req, res) => {
     return res.status(500).json({ message: 'Internal server error' });
   }
 });
+// const calculateReturns = (plan, units) => {
+//   // Get the unit price from plan's minInvestment
+//   const unitPrice = plan.minInvestment;
+//   const totalPrincipal = unitPrice * units;
+  
+//   // Get APY from plan
+//   const apy = plan.apy / 100;
+//   const monthlyRate = apy / 12;
+  
+//   // Determine tenure in months
+//   let tenureMonths = 4; // Default to 4 months as shown in screenshot
+  
+//   // Check if tenureOptions exists and has values
+//   if (plan.tenureOptions && plan.tenureOptions.length > 0) {
+//     const tenure = plan.tenureOptions[0]; // Use first option as default
+    
+//     if (tenure.includes('months')) {
+//       tenureMonths = parseInt(tenure.split(' ')[0]);
+//     } else if (tenure.includes('year')) {
+//       tenureMonths = parseInt(tenure.split(' ')[0]) * 12;
+//     }
+//   }
+  
+//   // Calculate interest for the period
+//   const interest = totalPrincipal * monthlyRate * tenureMonths;
+//   const totalAmount = totalPrincipal + interest;
+  
+//   // Format date for returns (using date in the future based on tenure)
+//   const currentDate = new Date();
+//   const futureDate = new Date();
+//   futureDate.setMonth(currentDate.getMonth() + tenureMonths);
+  
+//   const formattedDate = `${futureDate.getDate()} ${futureDate.toLocaleString('default', { month: 'short' })} ${futureDate.getFullYear()}`;
+  
+//   // Create returns data structure to match the screenshot format
+//   const returnsData = [
+//     {
+//       date: formattedDate,
+//       principal: totalPrincipal.toFixed(2),
+//       interest: interest.toFixed(2),
+//       totalAmount: totalAmount.toFixed(2)
+//     }
+//   ];
+  
+//   return {
+//     returnsData,
+//     summary: {
+//       totalPrincipal: totalPrincipal.toFixed(2),
+//       totalInterest: interest.toFixed(2),
+//       totalAmount: totalAmount.toFixed(2)
+//     },
+//     ytm: plan.apy, // Yield to Maturity
+//     riskLevel: plan.riskLevel,
+//     tenureMonths
+//   };
+// };
+
+
+// const generateReturnsPDF = (plan, units, returnsData) => {
+//   return new Promise((resolve, reject) => {
+//     try {
+//       // Create a new PDF document
+//       const doc = new PDFDocument({
+//         margin: 50,
+//         size: 'A4'
+//       });
+      
+//       // Buffer to store PDF
+//       const buffers = [];
+//       doc.on('data', buffer => buffers.push(buffer));
+//       doc.on('end', () => resolve(Buffer.concat(buffers)));
+      
+//       // Add content to PDF
+//       doc.fontSize(20).text('Investment Returns Visualization', { align: 'center' });
+//       doc.moveDown();
+      
+//       // Plan details
+//       doc.fontSize(14).text('Plan Details', { underline: true });
+//       doc.fontSize(12).text(`Plan Name: ${plan.name || 'UGRO Capital Senior Secured Bond'}`);
+//       doc.text(`Risk Level: ${plan.riskLevel || 'Low'}`);
+//       doc.text(`YTM: ${plan.apy}%`);
+//       doc.text(`Units Purchased: ${units}`);
+//       doc.text(`Unit Price: ₹${plan.minInvestment.toFixed(2)}`);
+//       doc.text(`Total Investment: ₹${returnsData.summary.totalPrincipal}`);
+//       doc.moveDown();
+      
+//       // Returns table
+//       doc.fontSize(14).text('Returns Schedule', { underline: true });
+//       doc.moveDown(0.5);
+      
+//       // Table headers
+//       const headers = ['#', 'Date', 'Principal (₹)', 'Interest (₹)', 'Total Amount (₹)'];
+      
+//       // Draw table headers
+//       const tableTop = doc.y;
+//       const tableLeft = 50;
+//       const colWidth = (doc.page.width - 100) / headers.length;
+      
+//       doc.fontSize(10);
+//       headers.forEach((header, i) => {
+//         doc.text(header, tableLeft + i * colWidth, tableTop, { width: colWidth, align: 'center' });
+//       });
+      
+//       const rowHeight = 20;
+//       let rowTop = tableTop + rowHeight;
+      
+//       // Draw table rows
+//       returnsData.returnsData.forEach((row, i) => {
+//         doc.text((i + 1).toString(), tableLeft, rowTop, { width: colWidth, align: 'center' });
+//         doc.text(row.date, tableLeft + colWidth, rowTop, { width: colWidth, align: 'center' });
+//         doc.text(row.principal, tableLeft + 2 * colWidth, rowTop, { width: colWidth, align: 'center' });
+//         doc.text(row.interest, tableLeft + 3 * colWidth, rowTop, { width: colWidth, align: 'center' });
+//         doc.text(row.totalAmount, tableLeft + 4 * colWidth, rowTop, { width: colWidth, align: 'center' });
+        
+//         rowTop += rowHeight;
+//       });
+      
+//       // Total row
+//       doc.rect(tableLeft, rowTop, doc.page.width - 100, rowHeight).stroke();
+//       doc.text('Total', tableLeft, rowTop, { width: colWidth, align: 'center' });
+//       doc.text(`${returnsData.returnsData.length} Returns`, tableLeft + colWidth, rowTop, { width: colWidth, align: 'center' });
+//       doc.text(returnsData.summary.totalPrincipal, tableLeft + 2 * colWidth, rowTop, { width: colWidth, align: 'center' });
+//       doc.text(returnsData.summary.totalInterest, tableLeft + 3 * colWidth, rowTop, { width: colWidth, align: 'center' });
+//       doc.text(returnsData.summary.totalAmount, tableLeft + 4 * colWidth, rowTop, { width: colWidth, align: 'center' });
+      
+//       // Summary and disclaimer
+//       doc.moveDown(2);
+//       doc.fontSize(12).text('Summary', { underline: true });
+//       doc.fontSize(10).text(`Your investment of ₹${returnsData.summary.totalPrincipal} will yield a total return of ₹${returnsData.summary.totalAmount} in ${returnsData.tenureMonths} months, with an interest of ₹${returnsData.summary.totalInterest}.`);
+      
+//       doc.moveDown();
+//       doc.fontSize(8).text('Disclaimer: Returns shown are indicative and subject to market conditions. Past performance is not indicative of future results.', { align: 'center', italic: true });
+      
+//       // Finalize the PDF
+//       doc.end();
+      
+//     } catch (error) {
+//       reject(error);
+//     }
+//   });
+// };
+
+// /**
+//  * API endpoint to get visual returns
+//  */
+// router.get('/visualise-returns/:planId/:units', async (req, res) => {
+//   try {
+//     const { planId, units = 1 } = req.params;
+//       console.log("planid"+" "+planId+" "+units);
+//     if (!planId) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Plan ID is required'
+//       });
+//     }
+    
+//     // Convert units to number
+//     const numberOfUnits = parseInt(units);
+    
+//     if (isNaN(numberOfUnits) || numberOfUnits <= 0) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Invalid number of units'
+//       });
+//     }
+    
+//     // Find plan from database
+//     const plan = await Plan.findById(planId);
+    
+//     if (!plan) {
+//       return res.status(404).json({
+//         success: false,
+//         message: 'Plan not found'
+//       });
+//     }
+    
+//     // Calculate returns
+//     const returnsData = calculateReturns(plan, numberOfUnits);
+    
+//     return res.status(200).json({
+//       success: true,
+//       data: {
+//         planDetails: {
+//           name: plan.name || 'UGRO Capital Senior Secured Bond',
+//           type: plan.type,
+//           apy: plan.apy,
+//           riskLevel: plan.riskLevel
+//         },
+//         units: numberOfUnits,
+//         unitPrice: plan.minInvestment,
+//         totalInvestment: returnsData.summary.totalPrincipal,
+//         returnsData: returnsData.returnsData,
+//         summary: returnsData.summary
+//       }
+//     });
+    
+//   } catch (error) {
+//     console.error('Error getting visual returns:', error);
+//     return res.status(500).json({
+//       success: false,
+//       message: 'Error calculating returns',
+//       error: error.message
+//     });
+//   }
+// });
+
+// /**
+//  * API endpoint to generate and download returns PDF
+//  */
+// router.get('/download-returns-pdf/:planId/:units', async (req, res) => {
+//   try {
+//     const { planId, units = 1 } = req.params;
+    
+//     if (!planId) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Plan ID is required'
+//       });
+//     }
+    
+//     // Convert units to number
+//     const numberOfUnits = parseInt(units);
+    
+//     if (isNaN(numberOfUnits) || numberOfUnits <= 0) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Invalid number of units'
+//       });
+//     }
+    
+//     // Find plan from database
+//     const plan = await Plan.findById(planId);
+    
+//     if (!plan) {
+//       return res.status(404).json({
+//         success: false,
+//         message: 'Plan not found'
+//       });
+//     }
+    
+//     // Calculate returns
+//     const returnsData = calculateReturns(plan, numberOfUnits);
+    
+//     // Generate PDF
+//     const pdfBuffer = await generateReturnsPDF(plan, numberOfUnits, returnsData);
+    
+//     // Set response headers for PDF download
+//     res.setHeader('Content-Type', 'application/pdf');
+//     res.setHeader('Content-Disposition', `attachment; filename=returns-plan-${planId}.pdf`);
+    
+//     // Send PDF buffer as response
+//     return res.send(pdfBuffer);
+    
+//   } catch (error) {
+//     console.error('Error generating returns PDF:', error);
+//     return res.status(500).json({
+//       success: false,
+//       message: 'Error generating returns PDF',
+//       error: error.message
+//     });
+//   }
+// });
 module.exports = router;

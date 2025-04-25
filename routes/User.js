@@ -1335,7 +1335,7 @@ router.post('/withdraw', protect, checkSufficientBalance, [
       if (error) console.error('Email error:', error);
     });
 
-    res.status(20).json({
+    res.status(200).json({
       success: true,
       message: 'Withdrawal request submitted successfully',
       request: withdrawalRequest

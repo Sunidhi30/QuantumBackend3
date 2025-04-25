@@ -1288,7 +1288,7 @@ const checkSufficientBalance = async (req, res, next) => {
     return res.status(500).json({ success: false, message: 'Server error', error: err.message });
   }
 };
-router.post('/withdraw', protect, checkSufficientBalance, [
+router.post('/withdraw', protect, [
   body('amount').isNumeric().withMessage('Amount must be a number'),
   body('accountNumber').isString().notEmpty().withMessage('Account number is required'),
   body('ifscCode').isString().notEmpty().withMessage('IFSC Code is required'),

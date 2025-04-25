@@ -75,6 +75,10 @@ const planSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  pdfUrl: {
+    type: String,  // Store the URL to the generated PDF
+    required: false, // Optional at first
+  },
   dividend: {
     type: Number, // Quantum Globe Fund: 5%, Quantum Blockchain-AI Fund: 10%
     required: true

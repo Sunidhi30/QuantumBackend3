@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const cloudinary = require("cloudinary");
 const Plan = require("../models/Plan"); // Import Plan model
 const { protect } = require("../middlewares/authMiddlewares"); // Only authentication required
 const User = require("../models/User"); // Ensure correct path
@@ -352,7 +353,6 @@ router.get('/kyc-documents', protect, async (req, res) => {
       res.status(500).json({ message: "Internal server error" });
   }
 });
-
 // get the amount payable and tax returns 
 // / First, let's create an endpoint to calculate the amount payable based on units
 router.post("/investments/calculate", protect, async (req, res) => {
@@ -426,8 +426,6 @@ router.post("/investments/calculate", protect, async (req, res) => {
   }
 });
 // generate the pdf of the calculated one 
-
-
 router.post("/investments/pdf-view", async (req, res) => {
   try {
     const { planId, units } = req.body;
@@ -588,6 +586,112 @@ router.post("/investments/pdf", async (req, res) => {
     });
   }
 });
+// upload the pdf to cloudinary 
+router.post("/investments/newpdf", async (req, res) => {
+  try {
+    const { planId, units } = req.body;
+
+    if (!planId || !units || units <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Plan ID and a valid number of units are required",
+      });
+    }
+
+    const plan = await Plan.findById(planId);
+    if (!plan || !plan.isActive) {
+      return res.status(404).json({
+        success: false,
+        message: "Plan not found or inactive",
+      });
+    }
+
+    const investmentAmount = units * plan.minInvestment;
+    const rate = plan.apy / 100;
+    const tenureInMonths = parseInt(plan.tenureOptions[plan.tenureOptions.length - 1]);
+    const tenureInYears = tenureInMonths / 12;
+    const n = 12;
+    const t = tenureInYears;
+    const maturityAmount = investmentAmount * Math.pow((1 + rate / n), n * t);
+    const totalReturns = maturityAmount - investmentAmount;
+    const interest = totalReturns.toFixed(2);
+    const principal = investmentAmount.toFixed(2);
+    const total = maturityAmount.toFixed(2);
+    const date = new Date().toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+
+    // === Generate PDF and save to Cloudinary ===
+    const doc = new PDFDocument({ margin: 50 });
+    
+    // Create a temporary file to save the generated PDF
+    const fs = require('fs');
+    const tempPdfPath = './temp-investment-preview.pdf';
+    doc.pipe(fs.createWriteStream(tempPdfPath)); // Save the PDF to a file
+
+    // PDF content
+    doc.image("images/image.png", 50, 50, { width: 50, height: 50 });
+    doc.font("Helvetica-Bold").fontSize(34).text("Visualise Returns", { align: "center" });
+    doc.moveDown(2);
+
+    const tableTop = doc.y;
+    const columnPositions = {
+      date: 50,
+      principal: 180,
+      interest: 310,
+      total: 440,
+    };
+
+    doc.font("Helvetica-Bold").fontSize(12)
+      .text("Date", columnPositions.date, tableTop)
+      .text("Principal", columnPositions.principal, tableTop)
+      .text("Interest", columnPositions.interest, tableTop)
+      .text("Total Returns", columnPositions.total, tableTop);
+
+    doc.font("Helvetica").fontSize(12)
+      .text(date, columnPositions.date, tableTop + 25)
+      .text(`₹${principal}`, columnPositions.principal, tableTop + 25)
+      .text(`₹${interest}`, columnPositions.interest, tableTop + 25)
+      .text(`₹${total}`, columnPositions.total, tableTop + 25);
+
+    doc.end(); // Finish writing PDF
+
+    // Upload the generated PDF to Cloudinary
+    cloudinary.uploader.upload(tempPdfPath, { resource_type: 'raw' }, async (error, result) => {
+      if (error) {
+        console.error("Error uploading PDF to Cloudinary:", error);
+        return res.status(500).json({
+          success: false,
+          message: "Failed to upload PDF to Cloudinary",
+        });
+      }
+
+      // Save the PDF URL in the database (Plan document)
+      plan.pdfUrl = result.secure_url; // URL returned by Cloudinary
+      await plan.save(); // Save the updated Plan document
+
+      // Respond with the PDF URL
+      res.json({
+        success: true,
+        message: "PDF generated and uploaded successfully",
+        pdfUrl: result.secure_url, // Returning the Cloudinary URL
+      });
+
+      // Clean up temporary file
+      fs.unlinkSync(tempPdfPath); // Remove the temporary PDF file
+    });
+
+  } catch (error) {
+    console.error("Error generating PDF:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to generate PDF",
+      error: error.message,
+    });
+  }
+});
 // Now, let's update the investment creation endpoint to use the calculated values
 router.post("/investments/confirm", protect, async (req, res) => {
   try {
@@ -682,7 +786,6 @@ router.get("/transactions/investments", protect, async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 });
-
 router.get("/investments/stats", protect, async (req, res) => {
   try {
     const userId = req.user.id;
@@ -1232,7 +1335,7 @@ router.post('/withdraw', protect, checkSufficientBalance, [
       if (error) console.error('Email error:', error);
     });
 
-    res.status(201).json({
+    res.status(200).json({
       success: true,
       message: 'Withdrawal request submitted successfully',
       request: withdrawalRequest

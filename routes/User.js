@@ -1,4 +1,5 @@
 const express = require("express");
+const InvestmentTransaction = require("../models/InvestmentTransaction");
 const router = express.Router();
 const axios = require('axios');
 const cloudinary = require("cloudinary");
@@ -356,9 +357,9 @@ router.get('/kyc-documents', protect, async (req, res) => {
       res.status(500).json({ message: "Internal server error" });
   }
 });
-// get the amount payable and tax returns 
+
 // / First, let's create an endpoint to calculate the amount payable based on units
-router.post("/investments/calculate", protect, async (req, res) => {
+router.post("/investments/calculate", async (req, res) => {
   try {
     const { planId, units } = req.body;
     
@@ -428,157 +429,7 @@ router.post("/investments/calculate", protect, async (req, res) => {
     });
   }
 });
-// generate the pdf of the calculated one 
-// router.get("/investments/pdf-view/:planId/:units", async (req, res) => {
-//   try {
-//     const { planId, units } = req.params;
-//     console.log("plan id ", planId);
-//     console.log("units ", units);
 
-
-//     if (!planId || !units || units <= 0) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Plan ID and a valid number of units are required",
-//       });
-//     }
-
-//     const plan = await Plan.findById(planId);
-//     if (!plan || !plan.isActive) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "Plan not found or inactive",
-//       });
-//     }
-
-//     const investmentAmount = units * plan.minInvestment;
-//     const rate = plan.apy / 100;
-//     const tenureInMonths = parseInt(plan.tenureOptions[plan.tenureOptions.length - 1]);
-//     const tenureInYears = tenureInMonths / 12;
-//     const n = 12;
-//     const t = tenureInYears;
-//     const maturityAmount = investmentAmount * Math.pow((1 + rate / n), n * t);
-//     const totalReturns = maturityAmount - investmentAmount;
-//     const interest = totalReturns.toFixed(2);
-//     const principal = investmentAmount.toFixed(2);
-//     const total = maturityAmount.toFixed(2);
-//     const date = new Date().toLocaleDateString("en-IN", {
-//       day: "2-digit",
-//       month: "short",
-//       year: "numeric",
-//     });
-
-//     // === Directly stream PDF to browser ===
-//     const doc = new PDFDocument({ margin: 50 });
-//     res.setHeader("Content-Type", "application/pdf");
-//     res.setHeader("Content-Disposition", "inline; filename=investment_preview.pdf");
-//     // res.setHeader("Content-Disposition", "attachment; filename=investment_preview.pdf");
-
-//     doc.pipe(res); // Stream PDF to response
-
-//     // PDF content
-//     doc.image("images/image.png", 50, 50, { width: 50, height: 50 });
-//     doc.font("Helvetica-Bold").fontSize(34).text("Visualise Returns", { align: "center" });
-//     doc.moveDown(2);
-
-//     const tableTop = doc.y;
-//     const columnPositions = {
-//       date: 50,
-//       principal: 180,
-//       interest: 310,
-//       total: 440,
-//     };
-
-//     doc.font("Helvetica-Bold").fontSize(12)
-//       .text("Date", columnPositions.date, tableTop)
-//       .text("Principal", columnPositions.principal, tableTop)
-//       .text("Interest", columnPositions.interest, tableTop)
-//       .text("Total Returns", columnPositions.total, tableTop);
-
-//     doc.font("Helvetica").fontSize(12)
-//       .text(date, columnPositions.date, tableTop + 25)
-//       .text(`₹${principal}`, columnPositions.principal, tableTop + 25)
-//       .text(`₹${interest}`, columnPositions.interest, tableTop + 25)
-//       .text(`₹${total}`, columnPositions.total, tableTop + 25);
-
-//     doc.end(); // Finish writing and stream
-
-//   } catch (error) {
-//     console.error("Error generating PDF:", error);
-//     res.status(500).json({
-//       success: false,
-//       message: "Failed to generate PDF",
-//       error: error.message,
-//     });
-//   }
-// });
-// router.get("/investments/pdf-view/:planId/:units", async (req, res) => {
-
-//    try {
-//     const { planId, units } = req.params;
-//     const { action } = req.query; 
-//     console.log("plan id ", planId);
-//     console.log("units ", units);
-
-
-//     if (!planId || !units || units <= 0) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Plan ID and a valid number of units are required",
-//       });
-//     }
-
-//     const plan = await Plan.findById(planId);
-//     if (!plan || !plan.isActive) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "Plan not found or inactive",
-//       });
-//     }
-
-//     const investmentAmount = units * plan.minInvestment;
-//     const rate = plan.apy / 100;
-//     const tenureInMonths = parseInt(plan.tenureOptions[plan.tenureOptions.length - 1]);
-//     const tenureInYears = tenureInMonths / 12;
-//     const n = 12;
-//     const t = tenureInYears;
-//     const maturityAmount = investmentAmount * Math.pow((1 + rate / n), n * t);
-//     const totalReturns = maturityAmount - investmentAmount;
-//     const interest = totalReturns.toFixed(2);
-//     const principal = investmentAmount.toFixed(2);
-//     const total = maturityAmount.toFixed(2);
-//     const date = new Date().toLocaleDateString("en-IN", {
-//       day: "2-digit",
-//       month: "short",
-//       year: "numeric",
-//     });
-// // 
-//     // Your existing logic for generating the PDF
-
-//     // === Directly stream PDF to browser ===
-//     const doc = new PDFDocument({ margin: 50 });
-//     res.setHeader("Content-Type", "application/pdf");
-//     if (action === 'download') {
-//       res.setHeader("Content-Disposition", "attachment; filename=investment_preview.pdf");
-//     } else {
-//       res.setHeader("Content-Disposition", "inline; filename=investment_preview.pdf");
-//     }
-    
-//     doc.pipe(res); // Stream PDF to response
-
-//     // PDF content logic ...
-
-//     doc.end(); // Finish writing and stream
-
-//   } catch (error) {
-//     console.error("Error generating PDF:", error);
-//     res.status(500).json({
-//       success: false,
-//       message: "Failed to generate PDF",
-//       error: error.message,
-//     });
-//   }
-// });
 router.get("/investments/pdf-view/:planId/:units", async (req, res) => {
   try {
     const { planId, units } = req.params;
@@ -682,167 +533,6 @@ router.get("/investments/pdf-view/:planId/:units", async (req, res) => {
     });
   }
 });
-// router.post("/investments/pdf-view", async (req, res) => {
-//   try {
-//     const { planId, units } = req.body;
-
-//     if (!planId || !units || units <= 0) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Plan ID and a valid number of units are required",
-//       });
-//     }
-
-//     const plan = await Plan.findById(planId);
-//     if (!plan || !plan.isActive) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "Plan not found or inactive",
-//       });
-//     }
-
-//     const investmentAmount = units * plan.minInvestment;
-//     const rate = plan.apy / 100;
-//     const tenureInMonths = parseInt(plan.tenureOptions[plan.tenureOptions.length - 1]);
-//     const tenureInYears = tenureInMonths / 12;
-//     const n = 12;
-//     const t = tenureInYears;
-//     const maturityAmount = investmentAmount * Math.pow((1 + rate / n), n * t);
-//     const totalReturns = maturityAmount - investmentAmount;
-//     const interest = totalReturns.toFixed(2);
-//     const principal = investmentAmount.toFixed(2);
-//     const total = maturityAmount.toFixed(2);
-//     const date = new Date().toLocaleDateString("en-IN", {
-//       day: "2-digit",
-//       month: "short",
-//       year: "numeric",
-//     });
-
-//     // === Directly stream PDF to browser ===
-//     const doc = new PDFDocument({ margin: 50 });
-//     res.setHeader("Content-Type", "application/pdf");
-//     res.setHeader("Content-Disposition", "inline; filename=investment_preview.pdf");
-//     // res.setHeader("Content-Disposition", "attachment; filename=investment_preview.pdf");
-
-//     doc.pipe(res); // Stream PDF to response
-
-//     // PDF content
-//     doc.image("images/image.png", 50, 50, { width: 50, height: 50 });
-//     doc.font("Helvetica-Bold").fontSize(34).text("Visualise Returns", { align: "center" });
-//     doc.moveDown(2);
-
-//     const tableTop = doc.y;
-//     const columnPositions = {
-//       date: 50,
-//       principal: 180,
-//       interest: 310,
-//       total: 440,
-//     };
-
-//     doc.font("Helvetica-Bold").fontSize(12)
-//       .text("Date", columnPositions.date, tableTop)
-//       .text("Principal", columnPositions.principal, tableTop)
-//       .text("Interest", columnPositions.interest, tableTop)
-//       .text("Total Returns", columnPositions.total, tableTop);
-
-//     doc.font("Helvetica").fontSize(12)
-//       .text(date, columnPositions.date, tableTop + 25)
-//       .text(`₹${principal}`, columnPositions.principal, tableTop + 25)
-//       .text(`₹${interest}`, columnPositions.interest, tableTop + 25)
-//       .text(`₹${total}`, columnPositions.total, tableTop + 25);
-
-//     doc.end(); // Finish writing and stream
-
-//   } catch (error) {
-//     console.error("Error generating PDF:", error);
-//     res.status(500).json({
-//       success: false,
-//       message: "Failed to generate PDF",
-//       error: error.message,
-//     });
-//   }
-// });
-// router.post("/investments/pdf", async (req, res) => {
-//   try {
-//     const { planId, units } = req.body;
-
-//     if (!planId || !units || units <= 0) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Plan ID and a valid number of units are required",
-//       });
-//     }
-
-//     const plan = await Plan.findById(planId);
-//     if (!plan || !plan.isActive) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "Plan not found or inactive",
-//       });
-//     }
-
-//     const investmentAmount = units * plan.minInvestment;
-//     const rate = plan.apy / 100;
-//     const tenureInMonths = parseInt(plan.tenureOptions[plan.tenureOptions.length - 1]);
-//     const tenureInYears = tenureInMonths / 12;
-//     const n = 12;
-//     const t = tenureInYears;
-//     const maturityAmount = investmentAmount * Math.pow((1 + rate / n), n * t);
-//     const totalReturns = maturityAmount - investmentAmount;
-//     const interest = totalReturns.toFixed(2);
-//     const principal = investmentAmount.toFixed(2);
-//     const total = maturityAmount.toFixed(2);
-//     const date = new Date().toLocaleDateString("en-IN", {
-//       day: "2-digit",
-//       month: "short",
-//       year: "numeric",
-//     });
-
-//     // === Directly stream PDF to browser ===
-//     const doc = new PDFDocument({ margin: 50 });
-//     res.setHeader("Content-Type", "application/pdf");
-//     // res.setHeader("Content-Disposition", "inline; filename=investment_preview.pdf");
-//     res.setHeader("Content-Disposition", "attachment; filename=investment_preview.pdf");
-
-//     doc.pipe(res); // Stream PDF to response
-
-//     // PDF content
-//     doc.image("images/image.png", 50, 50, { width: 50, height: 50 });
-//     doc.font("Helvetica-Bold").fontSize(34).text("Visualise Returns", { align: "center" });
-//     doc.moveDown(2);
-
-//     const tableTop = doc.y;
-//     const columnPositions = {
-//       date: 50,
-//       principal: 180,
-//       interest: 310,
-//       total: 440,
-//     };
-
-//     doc.font("Helvetica-Bold").fontSize(12)
-//       .text("Date", columnPositions.date, tableTop)
-//       .text("Principal", columnPositions.principal, tableTop)
-//       .text("Interest", columnPositions.interest, tableTop)
-//       .text("Total Returns", columnPositions.total, tableTop);
-
-//     doc.font("Helvetica").fontSize(12)
-//       .text(date, columnPositions.date, tableTop + 25)
-//       .text(`₹${principal}`, columnPositions.principal, tableTop + 25)
-//       .text(`₹${interest}`, columnPositions.interest, tableTop + 25)
-//       .text(`₹${total}`, columnPositions.total, tableTop + 25);
-
-//     doc.end(); // Finish writing and stream
-
-//   } catch (error) {
-//     console.error("Error generating PDF:", error);
-//     res.status(500).json({
-//       success: false,
-//       message: "Failed to generate PDF",
-//       error: error.message,
-//     });
-//   }
-// });
-
 // Create folder if not exists
 router.post('/users/investments/pdf', async (req, res) => {
   try {
@@ -964,17 +654,20 @@ router.post("/investments/confirm", protect, async (req, res) => {
       totalReturns: parseFloat(totalReturns.toFixed(2)),
       status: "active"
     });
-    await PaymentRequest.create({
-      user: user._id,
-      bankName: "Wallet Balance",
-      amount: totalAmountPayable,
-      transactionId: `INV-${Date.now()}-${Math.floor(Math.random() * 10000)}`, // More unique
-      status: "approved", // This is a system-generated deduction
-      isCredited: false,
-      wallet: user.walletBalance,
-      relatedInvestment: investment._id
-    });
+     // Create a dynamic transaction ID
+     const transactionId = `INV-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 
+     // Create transaction record
+     await InvestmentTransaction.create({
+       user: user._id,
+       investment: investment._id,
+       amount: totalAmountPayable,
+       transactionId: transactionId,
+       method: "Wallet Balance",
+       type: "buy", // Investment type
+       walletBalanceAfterTransaction: user.walletBalance
+     });
+ 
     res.status(201).json({
       success: true,
       message: "Investment successful",
@@ -986,6 +679,82 @@ router.post("/investments/confirm", protect, async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 });
+router.post("/investments/sell", protect, async (req, res) => {
+  try {
+    const { planId, unitsToSell } = req.body;
+   
+    // Validate input
+    if (!planId || !unitsToSell || unitsToSell <= 0) {
+      return res.status(400).json({ success: false, message: "Invalid data" });
+    }
+
+    // Find the plan
+    const plan = await Plan.findById(planId);
+    if (!plan || !plan.isActive) {
+      return res.status(404).json({ success: false, message: "Plan not found or inactive" });
+    }
+
+    // Find the user's investment in the specified plan
+    const investment = await Investment.findOne({
+      user: req.user._id,
+      plan: planId,
+      status: "active"
+    });
+
+    if (!investment) {
+      return res.status(404).json({ success: false, message: "No active investment found for this plan" });
+    }
+    console.log("Total units owned: " + investment.units);
+
+    // Check if the user has enough units to sell
+    if (unitsToSell > investment.units) {
+      return res.status(400).json({ success: false, message: "Insufficient units to sell" });
+    }
+
+    // Calculate the amount the user will get from selling the units
+    const unitSaleAmount = unitsToSell * plan.minInvestment;
+
+    // Update user's wallet balance
+    const user = await User.findById(req.user._id);
+    user.walletBalance += unitSaleAmount;
+    await user.save();
+
+    // Deduct the units from the user's investment, ensuring units do not go below 1
+    investment.units -= unitsToSell;
+    console.log("units left "+investment.units);
+    if (investment.units < 1) {
+      investment.units = 1; // Ensure it doesn't go below 1
+    }
+    await investment.save();
+
+    // Create a dynamic transaction ID
+    const transactionId = `SELL-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+
+    // Create transaction record for selling
+    await InvestmentTransaction.create({
+      user: user._id,
+      investment: investment._id,
+      amount: unitSaleAmount,
+      transactionId: transactionId,
+      method: "Wallet Balance",
+      type: "sell", // Withdrawal type
+      walletBalanceAfterTransaction: user.walletBalance
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Investment units sold successfully",
+      walletBalance: user.walletBalance,
+      totalUnitsOwned: investment.units + unitsToSell, // Before deducting
+      unitsSold: unitsToSell,
+      remainingUnits: investment.units
+    });
+  } catch (error) {
+    console.error("Investment sell error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
 // GET /api/transactions/investments
 router.get("/transactions/investments", protect, async (req, res) => {
   try {
@@ -1140,58 +909,7 @@ function calculateInvestmentSchedule(principal, apy, tenureMonths) {
         totalMonthlyReturns
     };
 }
-// Generate and download route combined
-// router.get('/:investmentId/schedule/pdf/view-download', async (req, res) => {
-  
-//   try {
-//     const investmentId = req.params.investmentId;
-//     const pdfFileName = `investment_schedule_${investmentId}.pdf`;
-//     const pdfFilePath = path.resolve(__dirname, '../downloads', pdfFileName);
-//     console.log("Saved PDF path:", path.resolve(__dirname, '../downloads', `investment_schedule_${investmentId}.pdf`));
 
-//     console.log(" pdfFilePath "+" "+ pdfFilePath )
-//     if (!fs.existsSync(pdfFilePath)) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "PDF not found. Please generate it first."
-//       });
-//     }
-
-//     res.set({
-//       'Content-Type': 'application/pdf',
-//       'Content-Disposition': `inline; filename="${pdfFileName}"`
-//     });
-
-//     fs.createReadStream(pdfFilePath).pipe(res);
-
-//   } catch (error) {
-//     console.error("Error displaying PDF:", error);
-//     res.status(500).json({
-//       success: false,
-//       message: "Server Error while displaying PDF"
-//     });
-//   }
-// });
-// 🔹 Function to generate columns
-// function generateColumnTable(doc, headers, data) {
-//   let startX = 50;
-//   const startY = doc.y + 20;
-//   const columnWidth = 110;
-//   const rowHeight = 25;
-
-//   doc.font("Helvetica-Bold").fontSize(9);
-//   headers.forEach((header, index) => {
-//       doc.text(header, startX + index * columnWidth, startY, { width: columnWidth, align: "left" });
-//   });
-
-//   doc.font("Helvetica").fontSize(9);
-//   const dataY = startY + rowHeight;
-//   data.forEach((value, index) => {
-//       doc.text(value, startX + index * columnWidth, dataY, { width: columnWidth, align: "left" });
-//   });
-
-//   doc.moveDown();
-// }
 router.get('/:investmentId/schedule/excel/generate-download', protect, async (req, res) => {
   try {
     const investment = await Investment.findById(req.params.investmentId).populate('plan');
@@ -1267,7 +985,7 @@ router.get("/faq", async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-// rewards users can see 
+
 // router.get('rewards', async (req, res) => {
 //     try {
 //         const { userId } = req.params;
@@ -1565,6 +1283,7 @@ router.post('/withdraw', protect, checkSufficientBalance, [
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 });
+// this si the transaction for adding the money and withdraw 
 router.get('/transactions', protect, async (req, res) => {
   try {
     const userId = req.user.id;
@@ -1615,64 +1334,7 @@ router.get('/categories', async (req, res) => {
     res.status(500).json({ message: 'Error fetching categories', error: error.message });
   }
 });
-// sell the investment 
-// router.post('/sell-investment', protect, async (req, res) => {
-//   try {
-//     const { investmentId, units } = req.body;
 
-//     // Extract userId from the token
-//     const userId = req.user.id;
-//     console.log("Authenticated User ID:", userId);
-
-//     // Find the investment
-//     const investment = await Investment.findOne({ _id: investmentId, user: userId });
-
-//     if (!investment) {
-//       return res.status(404).json({ message: 'Investment not found or does not belong to user' });
-//     }
-
-//     // Check if the user is trying to sell more units than they own
-//     if (units > investment.units) {
-//       return res.status(400).json({ message: 'Not enough units to sell' });
-//     }
-
-//     // Calculate refund amount based on the units sold
-//     const perUnitMaturityAmount = investment.maturityAmount / investment.units;
-//     const refundAmount = perUnitMaturityAmount * units;
-
-//     // Find the user
-//     const user = await User.findById(userId);
-//     if (!user) return res.status(404).json({ message: 'User not found' });
-
-//     // Update wallet balance
-//     user.walletBalance += refundAmount;
-//     await user.save();
-
-//     // Deduct sold units from investment
-//     investment.units -= units;
-//     investment.maturityAmount -= refundAmount;
-
-//     // If all units are sold, mark investment as 'sold'
-//     if (investment.units === 0) {
-//       investment.status = 'sold';
-//       investment.soldDate = new Date();
-//     }
-
-//     await investment.save();
-
-//     return res.status(200).json({ 
-//       message: `Successfully sold ${units} unit(s)`, 
-//       refundAmount, 
-//       remainingUnits: investment.units,
-//       investment 
-//     });
-
-//   } catch (error) {
-//     console.error(error);
-//     return res.status(500).json({ message: 'Internal server error' });
-//   }
-// });
-// Sell Investment Units API
 // router.post('/sell', protect, async (req, res) => {
 //   try {
 //     const { planId, unitsToSell } = req.body;
@@ -1703,102 +1365,66 @@ router.get('/categories', async (req, res) => {
 
 //     // 4. Selling logic
 //     let unitsLeftToSell = unitsToSell;
+//     let maturityAmount = 0; // To accumulate maturity amount
+
 //     for (const investment of investments) {
 //       if (investment.units <= unitsLeftToSell) {
+//         // If the investment has fewer or equal units to sell, sell it all
 //         unitsLeftToSell -= investment.units;
-//         investment.units = 0;
-//         investment.status = "sold"; // Mark sold
+//         maturityAmount += investment.units * investment.maturityAmount; // Add maturity amount per unit
+//         investment.status = "completed"; // Mark as completed (use completed instead of inactive)
 //       } else {
+//         // Otherwise, reduce units to sell
 //         investment.units -= unitsLeftToSell;
-//         unitsLeftToSell = 0;
+//         maturityAmount += unitsLeftToSell * investment.maturityAmount; // Add maturity amount for remaining units
+//         unitsLeftToSell = 0; // All units sold
 //       }
 //       await investment.save();
 
-//       if (unitsLeftToSell === 0) break;
+//       if (unitsLeftToSell === 0) break; // If all units have been sold, stop
 //     }
-    
-//     res.status(200).json({ message: "Units sold successfully!" });
+
+//     // Check if maturityAmount is a valid number
+//     if (isNaN(maturityAmount)) {
+//       return res.status(500).json({ message: "Error calculating maturity amount." });
+//     }
+
+//     // 5. Update user's wallet balance with maturity amount
+//     const user = await User.findById(userId);
+//     if (user) {
+//       user.walletBalance += maturityAmount; // Add maturity amount to wallet balance
+//       user.totalEarnings += maturityAmount; // Optionally, update total earnings as well
+
+//       // Ensure walletBalance and totalEarnings are numbers
+//       if (isNaN(user.walletBalance) || isNaN(user.totalEarnings)) {
+//         return res.status(500).json({ message: "Error updating wallet balance or total earnings." });
+//       }
+
+//       await user.save();
+//     }
+   
+//     // 6. Create PaymentRequest like the /investments/confirm
+//     await PaymentRequest.create({
+//       user: userId,
+//       bankName: "Wallet Balance",
+//       amount: maturityAmount,
+//       transactionId: `SELL-${Date.now()}-${Math.floor(Math.random() * 10000)}`, // more unique ID
+//       status: "approved", // 🟰 make it approved like investment confirm
+//       isCredited: true, // 🟰 true because wallet is credited
+//       wallet: user.walletBalance, // 🟰 current updated wallet balance
+//       relatedInvestment: null, // sell is not linked to specific investment
+//       plan: planId,
+//       type: "sell",
+//       units: unitsToSell,
+//       date: new Date()
+//     });
+//     res.status(200).json({ message: `Units sold successfully! Maturity amount of ${maturityAmount} added to your wallet.` });
 
 //   } catch (error) {
 //     console.error(error);
 //     res.status(500).json({ message: "Server error during selling units." });
 //   }
 // });
-router.post('/sell', protect, async (req, res) => {
-  try {
-    const { planId, unitsToSell } = req.body;
-    const userId = req.user.id; // from protect middleware
-
-    if (!planId || !unitsToSell) {
-      return res.status(400).json({ message: "Plan ID and units to sell are required." });
-    }
-
-    // 1. Find all active investments for this user and plan
-    const investments = await Investment.find({
-      user: userId,
-      plan: planId,
-      status: "active"
-    }).sort({ createdAt: 1 }); // FIFO
-
-    if (!investments.length) {
-      return res.status(404).json({ message: "No active investments found for this plan." });
-    }
-
-    // 2. Calculate total available units
-    let totalUnits = investments.reduce((sum, inv) => sum + inv.units, 0);
-
-    // 3. Check if user has enough units
-    if (totalUnits < unitsToSell) {
-      return res.status(400).json({ message: `Not enough units. Available: ${totalUnits}, Requested: ${unitsToSell}` });
-    }
-
-    // 4. Selling logic
-    let unitsLeftToSell = unitsToSell;
-    let maturityAmount = 0; // To accumulate maturity amount
-
-    for (const investment of investments) {
-      if (investment.units <= unitsLeftToSell) {
-        // If the investment has fewer or equal units to sell, sell it all
-        unitsLeftToSell -= investment.units;
-        maturityAmount += investment.units * investment.maturityAmount; // Add maturity amount per unit
-        investment.status = "completed"; // Mark as completed (use completed instead of inactive)
-      } else {
-        // Otherwise, reduce units to sell
-        investment.units -= unitsLeftToSell;
-        maturityAmount += unitsLeftToSell * investment.maturityAmount; // Add maturity amount for remaining units
-        unitsLeftToSell = 0; // All units sold
-      }
-      await investment.save();
-
-      if (unitsLeftToSell === 0) break; // If all units have been sold, stop
-    }
-
-    // Check if maturityAmount is a valid number
-    if (isNaN(maturityAmount)) {
-      return res.status(500).json({ message: "Error calculating maturity amount." });
-    }
-
-    // 5. Update user's wallet balance with maturity amount
-    const user = await User.findById(userId);
-    if (user) {
-      user.walletBalance += maturityAmount; // Add maturity amount to wallet balance
-      user.totalEarnings += maturityAmount; // Optionally, update total earnings as well
-
-      // Ensure walletBalance and totalEarnings are numbers
-      if (isNaN(user.walletBalance) || isNaN(user.totalEarnings)) {
-        return res.status(500).json({ message: "Error updating wallet balance or total earnings." });
-      }
-
-      await user.save();
-    }
-
-    res.status(200).json({ message: `Units sold successfully! Maturity amount of ${maturityAmount} added to your wallet.` });
-
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Server error during selling units." });
-  }
-});
 
 // support added the admin details 
 router.get('/support', async (req, res) => {

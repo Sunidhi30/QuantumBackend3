@@ -600,7 +600,6 @@ router.post('/users/investments/pdf', async (req, res) => {
     });
   }
 });
-
 // Now, let's update the investment creation endpoint to use the calculated values
 router.post("/investments/confirm", protect, async (req, res) => {
   try {
@@ -664,7 +663,7 @@ router.post("/investments/confirm", protect, async (req, res) => {
        amount: totalAmountPayable,
        transactionId: transactionId,
        method: "Wallet Balance",
-       type: "buy", // Investment type
+       status: "buy", // Investment type
        walletBalanceAfterTransaction: user.walletBalance
      });
  
@@ -680,7 +679,7 @@ router.post("/investments/confirm", protect, async (req, res) => {
   }
 });
 router.post("/investments/sell", protect, async (req, res) => {
-  try {
+  try { 
     const { planId, unitsToSell } = req.body;
    
     // Validate input
@@ -737,7 +736,7 @@ router.post("/investments/sell", protect, async (req, res) => {
       amount: unitSaleAmount,
       transactionId: transactionId,
       method: "Wallet Balance",
-      type: "sell", // Withdrawal type
+      status: "sell", // Withdrawal type
       walletBalanceAfterTransaction: user.walletBalance
     });
 
@@ -754,7 +753,6 @@ router.post("/investments/sell", protect, async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 });
-
 // GET /api/transactions/investments
 router.get("/transactions/investments", protect, async (req, res) => {
   try {
@@ -1283,7 +1281,27 @@ router.post('/withdraw', protect, checkSufficientBalance, [
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 });
-// this si the transaction for adding the money and withdraw 
+// // this si the transaction for adding the money and withdraw 
+// router.get('/transactions', protect, async (req, res) => {
+//   try {
+//     const userId = req.user.id;
+
+//     // Check if the user exists
+//     const user = await User.findById(userId);
+//     if (!user) {
+//       return res.status(404).json({ message: 'User not found' });
+//     }
+
+//     // Fetch all transactions for the user
+//     const transactions = await PaymentRequest.find({ user: userId }).sort({ createdAt: -1});
+//     console.log(transactions);
+
+//     res.status(200).json({ success: true, transactions });
+//   } catch (error) {
+//     console.error('Error fetching transactions:', error);
+//     res.status(500).json({ success: false, message: 'Internal server error' });
+//   }
+// });
 router.get('/transactions', protect, async (req, res) => {
   try {
     const userId = req.user.id;
@@ -1294,16 +1312,27 @@ router.get('/transactions', protect, async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Fetch all transactions for the user
-    const transactions = await PaymentRequest.find({ user: userId }).sort({ createdAt: -1});
-    console.log(transactions);
+    // Fetch all payment transactions for the user
+    const paymentTransactions = await PaymentRequest.find({ user: userId })
+      .sort({ createdAt: -1 });
 
-    res.status(200).json({ success: true, transactions });
+    // Fetch all investment transactions for the user
+    const investmentTransactions = await InvestmentTransaction.find({ user: userId })
+      .sort({ createdAt: -1 });
+
+    // Combine both sets of transactions into one array
+    const allTransactions = [...paymentTransactions, ...investmentTransactions];
+
+    // Sort combined transactions by createdAt (newest first)
+    allTransactions.sort((a, b) => b.createdAt - a.createdAt);
+
+    res.status(200).json({ success: true, transactions: allTransactions });
   } catch (error) {
     console.error('Error fetching transactions:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
+
 // transactions history of the user
 // router.get('/transactions/:userId', async (req, res) => {
 //     try {

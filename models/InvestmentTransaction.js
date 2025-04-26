@@ -25,7 +25,7 @@ const investmentTransactionSchema = new mongoose.Schema({
     type: String,
     default: "Wallet Balance"
   },
-  type: {
+  status: {
     type: String,
     enum: ["buy", "sell"],  // "buy" for investment, "sell" for withdrawal
     required: true

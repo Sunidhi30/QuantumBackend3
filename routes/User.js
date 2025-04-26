@@ -697,13 +697,20 @@ router.post("/investments/sell", protect, async (req, res) => {
     const investment = await Investment.findOne({
       user: req.user._id,
       plan: planId,
-      status: "active"
     });
 
     if (!investment) {
       return res.status(404).json({ success: false, message: "No active investment found for this plan" });
     }
+  
     console.log("Total units owned: " + investment.units);
+       // 🔥 Added check if remaining units are already 0
+    if (investment.units <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Remaining units is 0. You can't sell."
+      });
+    }
 
     // Check if the user has enough units to sell
     if (unitsToSell > investment.units) {
@@ -721,8 +728,9 @@ router.post("/investments/sell", protect, async (req, res) => {
     // Deduct the units from the user's investment, ensuring units do not go below 1
     investment.units -= unitsToSell;
     console.log("units left "+investment.units);
-    if (investment.units < 1) {
-      investment.units = 1; // Ensure it doesn't go below 1
+    if (investment.units <= 0) {
+      investment.units = 0; // Ensure it doesn't go below 1
+      investment.status = "completed"; 
     }
     await investment.save();
 
@@ -744,7 +752,7 @@ router.post("/investments/sell", protect, async (req, res) => {
       success: true,
       message: "Investment units sold successfully",
       walletBalance: user.walletBalance,
-      totalUnitsOwned: investment.units + unitsToSell, // Before deducting
+      totalUnitsOwned: Number(investment.units) + Number(unitsToSell), // Before deducting
       unitsSold: unitsToSell,
       remainingUnits: investment.units
     });
@@ -754,24 +762,24 @@ router.post("/investments/sell", protect, async (req, res) => {
   }
 });
 // GET /api/transactions/investments
-router.get("/transactions/investments", protect, async (req, res) => {
-  try {
-    const transactions = await PaymentRequest.find({
-      user: req.user._id,
-      relatedInvestment: { $ne: null }
-    })
-      .populate("relatedInvestment", "planName amount endDate maturityAmount status") // Optional: include details from Investment
-      .sort({ createdAt: -1 });
+// router.get("/transactions/investments", protect, async (req, res) => {
+//   try {
+//     const transactions = await PaymentRequest.find({
+//       user: req.user._id,
+//       relatedInvestment: { $ne: null }
+//     })
+//       .populate("relatedInvestment", "planName amount endDate maturityAmount status") // Optional: include details from Investment
+//       .sort({ createdAt: -1 });
 
-    res.status(200).json({
-      success: true,
-      transactions
-    });
-  } catch (error) {
-    console.error("Error fetching investment transactions:", error);
-    res.status(500).json({ success: false, message: "Server error" });
-  }
-});
+//     res.status(200).json({
+//       success: true,
+//       transactions
+//     });
+//   } catch (error) {
+//     console.error("Error fetching investment transactions:", error);
+//     res.status(500).json({ success: false, message: "Server error" });
+//   }
+// });
 router.get("/investments/stats", protect, async (req, res) => {
   try {
     const userId = req.user.id;
@@ -869,13 +877,43 @@ router.get('/investments', protect, async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch investments' });
   }
 });
+// router.get('/investments-withprofits', protect, async (req, res) => {
+//   try {
+//     const userId = req.user.id;
+
+//     const investments = await Investment.find({ user: userId }).sort({ createdAt: -1 });
+
+//     // Calculate summary
+//     const summary = investments.reduce(
+//       (acc, inv) => {
+//         acc.totalAmount += inv.amount || 0;
+//         acc.totalReturns += inv.totalReturns || 0;
+//         acc.totalMaturityAmount += inv.maturityAmount || 0;
+//         return acc;
+//       },
+//       { totalAmount: 0, totalReturns: 0, totalMaturityAmount: 0 }
+//     );
+
+//     res.status(200).json({
+//       summary,
+//       investments
+//     });
+//   } catch (err) {
+//     console.error('Error fetching investments:', err);
+//     res.status(500).json({ error: 'Failed to fetch investments' });
+//   }
+// });
 router.get('/investments-withprofits', protect, async (req, res) => {
   try {
     const userId = req.user.id;
 
-    const investments = await Investment.find({ user: userId }).sort({ createdAt: -1 });
+    // Fetch only active or running investments (not sold/completed/cancelled)
+    const investments = await Investment.find({
+      user: userId,
+      status: { $in: ['active', 'running'] }
+    }).sort({ createdAt: -1 });
 
-    // Calculate summary
+    // Calculate summary based only on active/running investments
     const summary = investments.reduce(
       (acc, inv) => {
         acc.totalAmount += inv.amount || 0;
@@ -895,6 +933,7 @@ router.get('/investments-withprofits', protect, async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch investments' });
   }
 });
+
 // Fetch total investments, current investments, total returns, and current invested amount
 function calculateInvestmentSchedule(principal, apy, tenureMonths) {
     let monthlyRate = apy / 12 / 100;

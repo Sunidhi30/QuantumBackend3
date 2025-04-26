@@ -15,7 +15,7 @@ const investmentSchema = new mongoose.Schema({
   units: {
     type: Number,
     required: true,
-    min: 1
+    min: 0
   },
 
   planName: {

@@ -429,10 +429,165 @@ router.post("/investments/calculate", protect, async (req, res) => {
   }
 });
 // generate the pdf of the calculated one 
-router.post("/investments/pdf-view", async (req, res) => {
-  try {
-    const { planId, units } = req.body;
+// router.get("/investments/pdf-view/:planId/:units", async (req, res) => {
+//   try {
+//     const { planId, units } = req.params;
+//     console.log("plan id ", planId);
+//     console.log("units ", units);
 
+
+//     if (!planId || !units || units <= 0) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Plan ID and a valid number of units are required",
+//       });
+//     }
+
+//     const plan = await Plan.findById(planId);
+//     if (!plan || !plan.isActive) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Plan not found or inactive",
+//       });
+//     }
+
+//     const investmentAmount = units * plan.minInvestment;
+//     const rate = plan.apy / 100;
+//     const tenureInMonths = parseInt(plan.tenureOptions[plan.tenureOptions.length - 1]);
+//     const tenureInYears = tenureInMonths / 12;
+//     const n = 12;
+//     const t = tenureInYears;
+//     const maturityAmount = investmentAmount * Math.pow((1 + rate / n), n * t);
+//     const totalReturns = maturityAmount - investmentAmount;
+//     const interest = totalReturns.toFixed(2);
+//     const principal = investmentAmount.toFixed(2);
+//     const total = maturityAmount.toFixed(2);
+//     const date = new Date().toLocaleDateString("en-IN", {
+//       day: "2-digit",
+//       month: "short",
+//       year: "numeric",
+//     });
+
+//     // === Directly stream PDF to browser ===
+//     const doc = new PDFDocument({ margin: 50 });
+//     res.setHeader("Content-Type", "application/pdf");
+//     res.setHeader("Content-Disposition", "inline; filename=investment_preview.pdf");
+//     // res.setHeader("Content-Disposition", "attachment; filename=investment_preview.pdf");
+
+//     doc.pipe(res); // Stream PDF to response
+
+//     // PDF content
+//     doc.image("images/image.png", 50, 50, { width: 50, height: 50 });
+//     doc.font("Helvetica-Bold").fontSize(34).text("Visualise Returns", { align: "center" });
+//     doc.moveDown(2);
+
+//     const tableTop = doc.y;
+//     const columnPositions = {
+//       date: 50,
+//       principal: 180,
+//       interest: 310,
+//       total: 440,
+//     };
+
+//     doc.font("Helvetica-Bold").fontSize(12)
+//       .text("Date", columnPositions.date, tableTop)
+//       .text("Principal", columnPositions.principal, tableTop)
+//       .text("Interest", columnPositions.interest, tableTop)
+//       .text("Total Returns", columnPositions.total, tableTop);
+
+//     doc.font("Helvetica").fontSize(12)
+//       .text(date, columnPositions.date, tableTop + 25)
+//       .text(`₹${principal}`, columnPositions.principal, tableTop + 25)
+//       .text(`₹${interest}`, columnPositions.interest, tableTop + 25)
+//       .text(`₹${total}`, columnPositions.total, tableTop + 25);
+
+//     doc.end(); // Finish writing and stream
+
+//   } catch (error) {
+//     console.error("Error generating PDF:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: "Failed to generate PDF",
+//       error: error.message,
+//     });
+//   }
+// });
+// router.get("/investments/pdf-view/:planId/:units", async (req, res) => {
+
+//    try {
+//     const { planId, units } = req.params;
+//     const { action } = req.query; 
+//     console.log("plan id ", planId);
+//     console.log("units ", units);
+
+
+//     if (!planId || !units || units <= 0) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Plan ID and a valid number of units are required",
+//       });
+//     }
+
+//     const plan = await Plan.findById(planId);
+//     if (!plan || !plan.isActive) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Plan not found or inactive",
+//       });
+//     }
+
+//     const investmentAmount = units * plan.minInvestment;
+//     const rate = plan.apy / 100;
+//     const tenureInMonths = parseInt(plan.tenureOptions[plan.tenureOptions.length - 1]);
+//     const tenureInYears = tenureInMonths / 12;
+//     const n = 12;
+//     const t = tenureInYears;
+//     const maturityAmount = investmentAmount * Math.pow((1 + rate / n), n * t);
+//     const totalReturns = maturityAmount - investmentAmount;
+//     const interest = totalReturns.toFixed(2);
+//     const principal = investmentAmount.toFixed(2);
+//     const total = maturityAmount.toFixed(2);
+//     const date = new Date().toLocaleDateString("en-IN", {
+//       day: "2-digit",
+//       month: "short",
+//       year: "numeric",
+//     });
+// // 
+//     // Your existing logic for generating the PDF
+
+//     // === Directly stream PDF to browser ===
+//     const doc = new PDFDocument({ margin: 50 });
+//     res.setHeader("Content-Type", "application/pdf");
+//     if (action === 'download') {
+//       res.setHeader("Content-Disposition", "attachment; filename=investment_preview.pdf");
+//     } else {
+//       res.setHeader("Content-Disposition", "inline; filename=investment_preview.pdf");
+//     }
+    
+//     doc.pipe(res); // Stream PDF to response
+
+//     // PDF content logic ...
+
+//     doc.end(); // Finish writing and stream
+
+//   } catch (error) {
+//     console.error("Error generating PDF:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: "Failed to generate PDF",
+//       error: error.message,
+//     });
+//   }
+// });
+router.get("/investments/pdf-view/:planId/:units", async (req, res) => {
+  try {
+    const { planId, units } = req.params;
+    const { action } = req.query; // 'download' or 'view'
+
+    console.log("Plan ID:", planId);
+    console.log("Units:", units);
+
+    // Validation
     if (!planId || !units || units <= 0) {
       return res.status(400).json({
         success: false,
@@ -441,6 +596,7 @@ router.post("/investments/pdf-view", async (req, res) => {
     }
 
     const plan = await Plan.findById(planId);
+
     if (!plan || !plan.isActive) {
       return res.status(404).json({
         success: false,
@@ -448,34 +604,50 @@ router.post("/investments/pdf-view", async (req, res) => {
       });
     }
 
+    // Calculate Investment Details
     const investmentAmount = units * plan.minInvestment;
     const rate = plan.apy / 100;
     const tenureInMonths = parseInt(plan.tenureOptions[plan.tenureOptions.length - 1]);
     const tenureInYears = tenureInMonths / 12;
-    const n = 12;
+    const n = 12; // Compounding frequency (monthly)
     const t = tenureInYears;
     const maturityAmount = investmentAmount * Math.pow((1 + rate / n), n * t);
     const totalReturns = maturityAmount - investmentAmount;
+
     const interest = totalReturns.toFixed(2);
     const principal = investmentAmount.toFixed(2);
     const total = maturityAmount.toFixed(2);
+
     const date = new Date().toLocaleDateString("en-IN", {
       day: "2-digit",
       month: "short",
       year: "numeric",
     });
 
-    // === Directly stream PDF to browser ===
+    // === Create PDF ===
     const doc = new PDFDocument({ margin: 50 });
+
+    // Set headers
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", "inline; filename=investment_preview.pdf");
-    // res.setHeader("Content-Disposition", "attachment; filename=investment_preview.pdf");
+    if (action === "download") {
+      res.setHeader("Content-Disposition", "attachment; filename=investment_preview.pdf");
+    } else {
+      res.setHeader("Content-Disposition", "inline; filename=investment_preview.pdf");
+    }
 
-    doc.pipe(res); // Stream PDF to response
+    doc.pipe(res); // Pipe to response
 
-    // PDF content
-    doc.image("images/image.png", 50, 50, { width: 50, height: 50 });
-    doc.font("Helvetica-Bold").fontSize(34).text("Visualise Returns", { align: "center" });
+    // === PDF Content ===
+    try {
+      doc.image("images/image.png", 50, 50, { width: 50, height: 50 });
+    } catch (error) {
+      console.warn("Image not found or error loading image:", error.message);
+    }
+
+    doc.font("Helvetica-Bold")
+      .fontSize(34)
+      .text("Visualise Returns", { align: "center" });
+
     doc.moveDown(2);
 
     const tableTop = doc.y;
@@ -486,20 +658,21 @@ router.post("/investments/pdf-view", async (req, res) => {
       total: 440,
     };
 
+    // Headings
     doc.font("Helvetica-Bold").fontSize(12)
       .text("Date", columnPositions.date, tableTop)
       .text("Principal", columnPositions.principal, tableTop)
       .text("Interest", columnPositions.interest, tableTop)
       .text("Total Returns", columnPositions.total, tableTop);
 
+    // Values
     doc.font("Helvetica").fontSize(12)
       .text(date, columnPositions.date, tableTop + 25)
       .text(`₹${principal}`, columnPositions.principal, tableTop + 25)
       .text(`₹${interest}`, columnPositions.interest, tableTop + 25)
       .text(`₹${total}`, columnPositions.total, tableTop + 25);
 
-    doc.end(); // Finish writing and stream
-
+    doc.end(); // Finish writing PDF
   } catch (error) {
     console.error("Error generating PDF:", error);
     res.status(500).json({
@@ -509,86 +682,166 @@ router.post("/investments/pdf-view", async (req, res) => {
     });
   }
 });
-router.post("/investments/pdf", async (req, res) => {
-  try {
-    const { planId, units } = req.body;
+// router.post("/investments/pdf-view", async (req, res) => {
+//   try {
+//     const { planId, units } = req.body;
 
-    if (!planId || !units || units <= 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Plan ID and a valid number of units are required",
-      });
-    }
+//     if (!planId || !units || units <= 0) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Plan ID and a valid number of units are required",
+//       });
+//     }
 
-    const plan = await Plan.findById(planId);
-    if (!plan || !plan.isActive) {
-      return res.status(404).json({
-        success: false,
-        message: "Plan not found or inactive",
-      });
-    }
+//     const plan = await Plan.findById(planId);
+//     if (!plan || !plan.isActive) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Plan not found or inactive",
+//       });
+//     }
 
-    const investmentAmount = units * plan.minInvestment;
-    const rate = plan.apy / 100;
-    const tenureInMonths = parseInt(plan.tenureOptions[plan.tenureOptions.length - 1]);
-    const tenureInYears = tenureInMonths / 12;
-    const n = 12;
-    const t = tenureInYears;
-    const maturityAmount = investmentAmount * Math.pow((1 + rate / n), n * t);
-    const totalReturns = maturityAmount - investmentAmount;
-    const interest = totalReturns.toFixed(2);
-    const principal = investmentAmount.toFixed(2);
-    const total = maturityAmount.toFixed(2);
-    const date = new Date().toLocaleDateString("en-IN", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
+//     const investmentAmount = units * plan.minInvestment;
+//     const rate = plan.apy / 100;
+//     const tenureInMonths = parseInt(plan.tenureOptions[plan.tenureOptions.length - 1]);
+//     const tenureInYears = tenureInMonths / 12;
+//     const n = 12;
+//     const t = tenureInYears;
+//     const maturityAmount = investmentAmount * Math.pow((1 + rate / n), n * t);
+//     const totalReturns = maturityAmount - investmentAmount;
+//     const interest = totalReturns.toFixed(2);
+//     const principal = investmentAmount.toFixed(2);
+//     const total = maturityAmount.toFixed(2);
+//     const date = new Date().toLocaleDateString("en-IN", {
+//       day: "2-digit",
+//       month: "short",
+//       year: "numeric",
+//     });
 
-    // === Directly stream PDF to browser ===
-    const doc = new PDFDocument({ margin: 50 });
-    res.setHeader("Content-Type", "application/pdf");
-    // res.setHeader("Content-Disposition", "inline; filename=investment_preview.pdf");
-    res.setHeader("Content-Disposition", "attachment; filename=investment_preview.pdf");
+//     // === Directly stream PDF to browser ===
+//     const doc = new PDFDocument({ margin: 50 });
+//     res.setHeader("Content-Type", "application/pdf");
+//     res.setHeader("Content-Disposition", "inline; filename=investment_preview.pdf");
+//     // res.setHeader("Content-Disposition", "attachment; filename=investment_preview.pdf");
 
-    doc.pipe(res); // Stream PDF to response
+//     doc.pipe(res); // Stream PDF to response
 
-    // PDF content
-    doc.image("images/image.png", 50, 50, { width: 50, height: 50 });
-    doc.font("Helvetica-Bold").fontSize(34).text("Visualise Returns", { align: "center" });
-    doc.moveDown(2);
+//     // PDF content
+//     doc.image("images/image.png", 50, 50, { width: 50, height: 50 });
+//     doc.font("Helvetica-Bold").fontSize(34).text("Visualise Returns", { align: "center" });
+//     doc.moveDown(2);
 
-    const tableTop = doc.y;
-    const columnPositions = {
-      date: 50,
-      principal: 180,
-      interest: 310,
-      total: 440,
-    };
+//     const tableTop = doc.y;
+//     const columnPositions = {
+//       date: 50,
+//       principal: 180,
+//       interest: 310,
+//       total: 440,
+//     };
 
-    doc.font("Helvetica-Bold").fontSize(12)
-      .text("Date", columnPositions.date, tableTop)
-      .text("Principal", columnPositions.principal, tableTop)
-      .text("Interest", columnPositions.interest, tableTop)
-      .text("Total Returns", columnPositions.total, tableTop);
+//     doc.font("Helvetica-Bold").fontSize(12)
+//       .text("Date", columnPositions.date, tableTop)
+//       .text("Principal", columnPositions.principal, tableTop)
+//       .text("Interest", columnPositions.interest, tableTop)
+//       .text("Total Returns", columnPositions.total, tableTop);
 
-    doc.font("Helvetica").fontSize(12)
-      .text(date, columnPositions.date, tableTop + 25)
-      .text(`₹${principal}`, columnPositions.principal, tableTop + 25)
-      .text(`₹${interest}`, columnPositions.interest, tableTop + 25)
-      .text(`₹${total}`, columnPositions.total, tableTop + 25);
+//     doc.font("Helvetica").fontSize(12)
+//       .text(date, columnPositions.date, tableTop + 25)
+//       .text(`₹${principal}`, columnPositions.principal, tableTop + 25)
+//       .text(`₹${interest}`, columnPositions.interest, tableTop + 25)
+//       .text(`₹${total}`, columnPositions.total, tableTop + 25);
 
-    doc.end(); // Finish writing and stream
+//     doc.end(); // Finish writing and stream
 
-  } catch (error) {
-    console.error("Error generating PDF:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to generate PDF",
-      error: error.message,
-    });
-  }
-});
+//   } catch (error) {
+//     console.error("Error generating PDF:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: "Failed to generate PDF",
+//       error: error.message,
+//     });
+//   }
+// });
+// router.post("/investments/pdf", async (req, res) => {
+//   try {
+//     const { planId, units } = req.body;
+
+//     if (!planId || !units || units <= 0) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Plan ID and a valid number of units are required",
+//       });
+//     }
+
+//     const plan = await Plan.findById(planId);
+//     if (!plan || !plan.isActive) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Plan not found or inactive",
+//       });
+//     }
+
+//     const investmentAmount = units * plan.minInvestment;
+//     const rate = plan.apy / 100;
+//     const tenureInMonths = parseInt(plan.tenureOptions[plan.tenureOptions.length - 1]);
+//     const tenureInYears = tenureInMonths / 12;
+//     const n = 12;
+//     const t = tenureInYears;
+//     const maturityAmount = investmentAmount * Math.pow((1 + rate / n), n * t);
+//     const totalReturns = maturityAmount - investmentAmount;
+//     const interest = totalReturns.toFixed(2);
+//     const principal = investmentAmount.toFixed(2);
+//     const total = maturityAmount.toFixed(2);
+//     const date = new Date().toLocaleDateString("en-IN", {
+//       day: "2-digit",
+//       month: "short",
+//       year: "numeric",
+//     });
+
+//     // === Directly stream PDF to browser ===
+//     const doc = new PDFDocument({ margin: 50 });
+//     res.setHeader("Content-Type", "application/pdf");
+//     // res.setHeader("Content-Disposition", "inline; filename=investment_preview.pdf");
+//     res.setHeader("Content-Disposition", "attachment; filename=investment_preview.pdf");
+
+//     doc.pipe(res); // Stream PDF to response
+
+//     // PDF content
+//     doc.image("images/image.png", 50, 50, { width: 50, height: 50 });
+//     doc.font("Helvetica-Bold").fontSize(34).text("Visualise Returns", { align: "center" });
+//     doc.moveDown(2);
+
+//     const tableTop = doc.y;
+//     const columnPositions = {
+//       date: 50,
+//       principal: 180,
+//       interest: 310,
+//       total: 440,
+//     };
+
+//     doc.font("Helvetica-Bold").fontSize(12)
+//       .text("Date", columnPositions.date, tableTop)
+//       .text("Principal", columnPositions.principal, tableTop)
+//       .text("Interest", columnPositions.interest, tableTop)
+//       .text("Total Returns", columnPositions.total, tableTop);
+
+//     doc.font("Helvetica").fontSize(12)
+//       .text(date, columnPositions.date, tableTop + 25)
+//       .text(`₹${principal}`, columnPositions.principal, tableTop + 25)
+//       .text(`₹${interest}`, columnPositions.interest, tableTop + 25)
+//       .text(`₹${total}`, columnPositions.total, tableTop + 25);
+
+//     doc.end(); // Finish writing and stream
+
+//   } catch (error) {
+//     console.error("Error generating PDF:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: "Failed to generate PDF",
+//       error: error.message,
+//     });
+//   }
+// });
 
 // Create folder if not exists
 router.post('/users/investments/pdf', async (req, res) => {

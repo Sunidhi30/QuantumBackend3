@@ -1353,6 +1353,7 @@ router.get('/transactions', protect, async (req, res) => {
 //     }
 // });
 // get all the cateoggies (low risk , high yeild )
+
 router.get('/categories', async (req, res) => {
   try {
     const categories = await Plan.distinct('category'); // Get unique category values
@@ -1362,62 +1363,190 @@ router.get('/categories', async (req, res) => {
   }
 });
 // sell the investment 
-router.post('/sell-investment', protect, async (req, res) => {
+// router.post('/sell-investment', protect, async (req, res) => {
+//   try {
+//     const { investmentId, units } = req.body;
+
+//     // Extract userId from the token
+//     const userId = req.user.id;
+//     console.log("Authenticated User ID:", userId);
+
+//     // Find the investment
+//     const investment = await Investment.findOne({ _id: investmentId, user: userId });
+
+//     if (!investment) {
+//       return res.status(404).json({ message: 'Investment not found or does not belong to user' });
+//     }
+
+//     // Check if the user is trying to sell more units than they own
+//     if (units > investment.units) {
+//       return res.status(400).json({ message: 'Not enough units to sell' });
+//     }
+
+//     // Calculate refund amount based on the units sold
+//     const perUnitMaturityAmount = investment.maturityAmount / investment.units;
+//     const refundAmount = perUnitMaturityAmount * units;
+
+//     // Find the user
+//     const user = await User.findById(userId);
+//     if (!user) return res.status(404).json({ message: 'User not found' });
+
+//     // Update wallet balance
+//     user.walletBalance += refundAmount;
+//     await user.save();
+
+//     // Deduct sold units from investment
+//     investment.units -= units;
+//     investment.maturityAmount -= refundAmount;
+
+//     // If all units are sold, mark investment as 'sold'
+//     if (investment.units === 0) {
+//       investment.status = 'sold';
+//       investment.soldDate = new Date();
+//     }
+
+//     await investment.save();
+
+//     return res.status(200).json({ 
+//       message: `Successfully sold ${units} unit(s)`, 
+//       refundAmount, 
+//       remainingUnits: investment.units,
+//       investment 
+//     });
+
+//   } catch (error) {
+//     console.error(error);
+//     return res.status(500).json({ message: 'Internal server error' });
+//   }
+// });
+// Sell Investment Units API
+// router.post('/sell', protect, async (req, res) => {
+//   try {
+//     const { planId, unitsToSell } = req.body;
+//     const userId = req.user.id; // from protect middleware
+
+//     if (!planId || !unitsToSell) {
+//       return res.status(400).json({ message: "Plan ID and units to sell are required." });
+//     }
+
+//     // 1. Find all active investments for this user and plan
+//     const investments = await Investment.find({
+//       user: userId,
+//       plan: planId,
+//       status: "active"
+//     }).sort({ createdAt: 1 }); // FIFO
+
+//     if (!investments.length) {
+//       return res.status(404).json({ message: "No active investments found for this plan." });
+//     }
+
+//     // 2. Calculate total available units
+//     let totalUnits = investments.reduce((sum, inv) => sum + inv.units, 0);
+
+//     // 3. Check if user has enough units
+//     if (totalUnits < unitsToSell) {
+//       return res.status(400).json({ message: `Not enough units. Available: ${totalUnits}, Requested: ${unitsToSell}` });
+//     }
+
+//     // 4. Selling logic
+//     let unitsLeftToSell = unitsToSell;
+//     for (const investment of investments) {
+//       if (investment.units <= unitsLeftToSell) {
+//         unitsLeftToSell -= investment.units;
+//         investment.units = 0;
+//         investment.status = "sold"; // Mark sold
+//       } else {
+//         investment.units -= unitsLeftToSell;
+//         unitsLeftToSell = 0;
+//       }
+//       await investment.save();
+
+//       if (unitsLeftToSell === 0) break;
+//     }
+    
+//     res.status(200).json({ message: "Units sold successfully!" });
+
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).json({ message: "Server error during selling units." });
+//   }
+// });
+router.post('/sell', protect, async (req, res) => {
   try {
-    const { investmentId, units } = req.body;
+    const { planId, unitsToSell } = req.body;
+    const userId = req.user.id; // from protect middleware
 
-    // Extract userId from the token
-    const userId = req.user.id;
-    console.log("Authenticated User ID:", userId);
-
-    // Find the investment
-    const investment = await Investment.findOne({ _id: investmentId, user: userId });
-
-    if (!investment) {
-      return res.status(404).json({ message: 'Investment not found or does not belong to user' });
+    if (!planId || !unitsToSell) {
+      return res.status(400).json({ message: "Plan ID and units to sell are required." });
     }
 
-    // Check if the user is trying to sell more units than they own
-    if (units > investment.units) {
-      return res.status(400).json({ message: 'Not enough units to sell' });
+    // 1. Find all active investments for this user and plan
+    const investments = await Investment.find({
+      user: userId,
+      plan: planId,
+      status: "active"
+    }).sort({ createdAt: 1 }); // FIFO
+
+    if (!investments.length) {
+      return res.status(404).json({ message: "No active investments found for this plan." });
     }
 
-    // Calculate refund amount based on the units sold
-    const perUnitMaturityAmount = investment.maturityAmount / investment.units;
-    const refundAmount = perUnitMaturityAmount * units;
+    // 2. Calculate total available units
+    let totalUnits = investments.reduce((sum, inv) => sum + inv.units, 0);
 
-    // Find the user
+    // 3. Check if user has enough units
+    if (totalUnits < unitsToSell) {
+      return res.status(400).json({ message: `Not enough units. Available: ${totalUnits}, Requested: ${unitsToSell}` });
+    }
+
+    // 4. Selling logic
+    let unitsLeftToSell = unitsToSell;
+    let maturityAmount = 0; // To accumulate maturity amount
+
+    for (const investment of investments) {
+      if (investment.units <= unitsLeftToSell) {
+        // If the investment has fewer or equal units to sell, sell it all
+        unitsLeftToSell -= investment.units;
+        maturityAmount += investment.units * investment.maturityAmount; // Add maturity amount per unit
+        investment.status = "completed"; // Mark as completed (use completed instead of inactive)
+      } else {
+        // Otherwise, reduce units to sell
+        investment.units -= unitsLeftToSell;
+        maturityAmount += unitsLeftToSell * investment.maturityAmount; // Add maturity amount for remaining units
+        unitsLeftToSell = 0; // All units sold
+      }
+      await investment.save();
+
+      if (unitsLeftToSell === 0) break; // If all units have been sold, stop
+    }
+
+    // Check if maturityAmount is a valid number
+    if (isNaN(maturityAmount)) {
+      return res.status(500).json({ message: "Error calculating maturity amount." });
+    }
+
+    // 5. Update user's wallet balance with maturity amount
     const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (user) {
+      user.walletBalance += maturityAmount; // Add maturity amount to wallet balance
+      user.totalEarnings += maturityAmount; // Optionally, update total earnings as well
 
-    // Update wallet balance
-    user.walletBalance += refundAmount;
-    await user.save();
+      // Ensure walletBalance and totalEarnings are numbers
+      if (isNaN(user.walletBalance) || isNaN(user.totalEarnings)) {
+        return res.status(500).json({ message: "Error updating wallet balance or total earnings." });
+      }
 
-    // Deduct sold units from investment
-    investment.units -= units;
-    investment.maturityAmount -= refundAmount;
-
-    // If all units are sold, mark investment as 'sold'
-    if (investment.units === 0) {
-      investment.status = 'sold';
-      investment.soldDate = new Date();
+      await user.save();
     }
 
-    await investment.save();
-
-    return res.status(200).json({ 
-      message: `Successfully sold ${units} unit(s)`, 
-      refundAmount, 
-      remainingUnits: investment.units,
-      investment 
-    });
+    res.status(200).json({ message: `Units sold successfully! Maturity amount of ${maturityAmount} added to your wallet.` });
 
   } catch (error) {
     console.error(error);
-    return res.status(500).json({ message: 'Internal server error' });
+    res.status(500).json({ message: "Server error during selling units." });
   }
 });
+
 // support added the admin details 
 router.get('/support', async (req, res) => {
   try {

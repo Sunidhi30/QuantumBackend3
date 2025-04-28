@@ -170,12 +170,19 @@ router.post('/verify-otp', async (req, res) => {
     user.isEmailVerified = true;
     
     await user.save();
+    const token = jwt.sign(
+      { id: user._id, email: user.email, role: user.role },  // You can add any payload you want
+      process.env.JWT_SECRET,  // secret key
+      { expiresIn: '7d' }      // token expiry
+    );
     
     res.json({ 
       success: true,
       kycStatus: user.kycStatus,
+      token, 
       message: 'Email verified successfully. You can now proceed with login.',
-      nextStep: 'complete-registration' 
+      nextStep: 'complete-registration' ,
+       referralCode: user.referralCode //
     });
   } catch (error) {
     console.error('Email verification error:', error);

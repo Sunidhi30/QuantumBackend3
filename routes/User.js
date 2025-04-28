@@ -331,6 +331,25 @@ router.post(
     }
   }
 );
+router.get("/kyc-status", protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select("kycStatus kycDocuments");
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json({
+      success: true,
+      kycStatus: user.kycStatus, // pending, approved, rejected etc.
+      kycDocuments: user.kycDocuments, // optional - if you want to show the uploaded docs too
+    });
+  } catch (error) {
+    console.error("Get KYC Status Error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // list of the docs of kyc
 router.get('/kyc-documents', protect, async (req, res) => {
   try {

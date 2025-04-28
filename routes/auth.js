@@ -90,7 +90,6 @@ router.post('/register', async (req, res) => {
       referralCode: newReferralCode,
       referredBy: referrer ? referrer._id : null
     });
-    // await newUser.save();
 
     const sessionId = generateSessionId();
     sessions.set(sessionId, { user: newUser }); // ✅ Already correct
@@ -174,8 +173,8 @@ router.post('/verify-otp', async (req, res) => {
     
     res.json({ 
       success: true,
-      kycStatus: newUser.kycStatus,
-      message: 'Email verified successfully. You can now proceed with the next step.',
+      kycStatus: user.kycStatus,
+      message: 'Email verified successfully. You can now proceed with login.',
       nextStep: 'complete-registration' 
     });
   } catch (error) {

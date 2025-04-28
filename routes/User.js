@@ -682,7 +682,7 @@ router.post("/investments/confirm", protect, async (req, res) => {
        amount: totalAmountPayable,
        transactionId: transactionId,
        method: "Wallet Balance",
-       isCredited:false,
+      //  isCredited:false,
        status: "buy", // Investment type
        walletBalanceAfterTransaction: user.walletBalance
      });
@@ -764,7 +764,7 @@ router.post("/investments/sell", protect, async (req, res) => {
       amount: unitSaleAmount,
       transactionId: transactionId,
       method: "Wallet Balance",
-      isCredited:true,
+      // isCredited:true,
       status: "sell", // Withdrawal type
       walletBalanceAfterTransaction: user.walletBalance
     });

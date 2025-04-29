@@ -782,6 +782,30 @@ router.post("/investments/sell", protect, async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 });
+router.get("/investments/sold", protect, async (req, res) => {
+  try {
+    // Find all the investment transactions for the logged-in user where the status is 'sell'
+    const soldInvestments = await InvestmentTransaction.find({
+      user: req.user._id,
+      status: "sell" // Filter by the 'sell' status to get sold investments
+    }).populate('investment') // Populate the investment details
+    .populate('investment.plan'); // Populate the plan details for each investment
+
+    if (!soldInvestments || soldInvestments.length === 0) {
+      return res.status(404).json({ success: false, message: "No sold investments found" });
+    }
+
+    // Return the sold investments with the plan details
+    res.status(200).json({
+      success: true,
+      message: "Sold investments fetched successfully",
+      soldInvestments
+    });
+  } catch (error) {
+    console.error("Error fetching sold investments:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
 // GET /api/transactions/investments
 // router.get("/transactions/investments", protect, async (req, res) => {
 //   try {
@@ -1792,4 +1816,28 @@ router.get('/support', async (req, res) => {
 //     });
 //   }
 // });
+// Get investments to sell
+router.get("/investments/sell", protect, async (req, res) => {
+  try {
+    // Retrieve all active investments for the logged-in user
+    const investments = await Investment.find({
+      user: req.user._id,
+      status: { $in: ['active', 'running'] } // Filter by active or running status
+    }).populate('plan'); // Optionally populate the plan details for each investment
+
+    if (!investments || investments.length === 0) {
+      return res.status(404).json({ success: false, message: "No active investments found" });
+    }
+
+    // Return the investments
+    res.status(200).json({
+      success: true,
+      message: "Investments fetched successfully",
+      investments
+    });
+  } catch (error) {
+    console.error("Error fetching investments:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
 module.exports = router;
